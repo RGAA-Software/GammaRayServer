@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "id",
+    "relay",
+    "supervisor"
+]
