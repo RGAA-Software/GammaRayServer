@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct RespMessage<T> where T: Serialize, T: Default {
@@ -28,6 +29,13 @@ pub fn make_ok_resp_message<T>(value: T) -> RespMessage<T> where T: Serialize, T
         message: "ok".to_string(),
         data: value,
     }
+}
+
+pub fn get_current_timestamp() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
 }
 
 pub fn add(left: u64, right: u64) -> u64 {

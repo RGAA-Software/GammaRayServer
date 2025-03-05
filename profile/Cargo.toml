@@ -17,3 +17,4 @@ mongodb = "3.2.1"
 futures-util = "0.3.31"
 md5 = "0.7.0"
 uuid = { version = "1.15.1",features = ["v4", ] }
+rand = "0.8"

@@ -66,4 +66,23 @@ impl PrDatabase {
         }
         true
     }
+    
+    pub async fn find_device_by_id_and_seed(&self, device_id: &String, seed: &String) -> Option<PrDevice> {
+        let c_device = self.c_device.clone().unwrap().clone();
+        let filter = doc! { 
+            "device_id": device_id,
+            "seed": seed,
+        };
+        let r = c_device.lock().await.find_one(filter, ).await;
+        r.unwrap_or(None)
+    }
+    
+    pub async fn find_device_by_id(&self, device_id: &String) -> Option<PrDevice> {
+        let c_device = self.c_device.clone().unwrap().clone();
+        let filter = doc! { 
+            "device_id": device_id,
+        };
+        let r = c_device.lock().await.find_one(filter, ).await;
+        r.unwrap_or(None)
+    }
 }
