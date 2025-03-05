@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "id",
+    "base",
+    "profile",
     "relay",
     "supervisor"
 ]
