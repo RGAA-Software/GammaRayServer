@@ -15,7 +15,7 @@ impl PrDeviceHandler {
     pub async fn create_new_device(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>) -> Json<RespMessage<PrDevice>> {
         let db = context.lock().await.database.clone();
         let device = PrDevice {
-            device_id: "12345".to_string(),
+            device_id: context.lock().await.id_generator.lock().await.generate_new_id("12345".to_string(), "".to_string()),
             created_timestamp: 10,
             last_update_timestamp: 20,
         };
