@@ -67,7 +67,7 @@ impl RelayServer {
     }
 
     async fn ws_handler(
-        State(context): State<Arc<tokio::sync::Mutex<RelayContext>>>,
+        State(context): State<Arc<Mutex<RelayContext>>>,
         query: Query<HashMap<String, String>>,
         ws: WebSocketUpgrade,
         user_agent: Option<TypedHeader<headers::UserAgent>>,
@@ -88,22 +88,25 @@ impl RelayServer {
         })
     }
 
-    async fn handle_socket(context: Arc<Mutex<RelayContext>>, params: HashMap<String, String>, mut socket: WebSocket, who: SocketAddr) {
+    async fn handle_socket(context: Arc<Mutex<RelayContext>>,
+                           params: HashMap<String, String>,
+                           socket: WebSocket,
+                           who: SocketAddr) {
         let (sender, mut receiver) = socket.split();
-        let conn_mgr = context.lock().await.device_conn_mgr.clone();
+        let conn_mgr = context.lock().await.conn_mgr.clone();
 
         let mut recv_task = tokio::spawn(async move {
-            let sender = Arc::new(Mutex::new(sender));
-            // todo:
-            // save to redis
             let device_id = params.get("device_id").unwrap_or(&"".to_string()).clone();
-            conn_mgr.lock().await.add_connection(&device_id, sender).await;
+            let sender = Arc::new(Mutex::new(sender));
+            let relay_conn = RelayConn::new(context.clone(), sender, device_id.clone());
+
+            conn_mgr.lock().await.add_connection(&device_id, relay_conn.clone()).await;
 
             let mut cnt = 0;
             while let Some(Ok(msg)) = receiver.next().await {
                 cnt += 1;
                 // print message and break if instructed to do so
-                if RelayServer::process_message(context.clone(), conn_mgr.clone(), msg, who).await.is_break() {
+                if RelayServer::process_message(context.clone(), relay_conn.clone(), msg, who).await.is_break() {
                     break;
                 }
             }
@@ -125,11 +128,12 @@ impl RelayServer {
     }
 
     async fn process_message(context: Arc<Mutex<RelayContext>>,
-                             conn_mgr: Arc<Mutex<RelayConnManager>>,
+                             relay_conn: Arc<Mutex<RelayConn>>,
                              msg: Message,
                              who: SocketAddr)
         -> ControlFlow<(), ()> {
 
+        let conn_mgr = context.lock().await.conn_mgr.clone();
         match msg {
             Message::Text(t) => {
 
@@ -143,16 +147,25 @@ impl RelayServer {
                 let m = m.unwrap();
                 let m_type = m.r#type;
                 if m_type == RelayMessageType::KRelayHello {
-                    conn_mgr.lock().await.on_hello().await;
+                    relay_conn.lock().await.on_hello().await;
                 }
                 else if m_type == RelayMessageType::KRelayHeartBeat {
-                    conn_mgr.lock().await.on_heartbeat().await;
+                    relay_conn.lock().await.on_heartbeat().await;
                 }
                 else if m_type == RelayMessageType::KRelayError {
-
+                    relay_conn.lock().await.on_error(m).await;
                 }
                 else if m_type == RelayMessageType::KRelayTargetMessage {
-                    conn_mgr.lock().await.on_relay(data).await;
+                    relay_conn.lock().await.on_relay(m, data).await;
+                }
+                else if m_type == RelayMessageType::KRelayCreateRoom {
+
+                }
+                else if m_type == RelayMessageType::KRelayRequestControl {
+
+                }
+                else if m_type == RelayMessageType::KRelayRequestControlResp {
+
                 }
             }
             Message::Close(c) => {
