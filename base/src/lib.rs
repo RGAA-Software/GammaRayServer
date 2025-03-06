@@ -39,7 +39,7 @@ impl <T> RespMessage<T> where T: Serialize, T: Default {
     }
 }
 
-pub fn make_ok_resp_message<T>(value: T) -> RespMessage<T> where T: Serialize, T: Default {
+pub fn make_ok_resp<T>(value: T) -> RespMessage<T> where T: Serialize, T: Default {
     RespMessage::<T> {
         code: 200,
         message: "ok".to_string(),
@@ -47,7 +47,7 @@ pub fn make_ok_resp_message<T>(value: T) -> RespMessage<T> where T: Serialize, T
     }
 }
 
-pub fn make_err_resp_message(pair: RespMsgPair) -> RespMessage<String>{
+pub fn make_resp(pair: RespMsgPair) -> RespMessage<String>{
     RespMessage::<String> {
         code: pair.code,
         message: pair.message,

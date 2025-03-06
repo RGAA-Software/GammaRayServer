@@ -3,11 +3,11 @@ use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::Json;
 use tokio::task::id;
-use base::{make_err_resp_message, make_ok_resp_message};
+use base::{make_resp, make_ok_resp};
 use crate::pr_context::PrContext;
 use crate::pr_device::PrDevice;
 use crate::RespMessage;
-use crate::pr_errors::{get_err_msg_pair, ERR_DEVICE_NOT_FOUND, ERR_OPERATE_DB_FAILED, ERR_PARAM_INVALID};
+use crate::pr_errors::{get_err_pair, ERR_DEVICE_NOT_FOUND, ERR_OPERATE_DB_FAILED, ERR_PARAM_INVALID};
 
 pub struct PrDeviceHandler {
 
@@ -80,7 +80,7 @@ impl PrDeviceHandler {
 
         // resp
         if let Some(device) = device {
-            Json(make_ok_resp_message(device))
+            Json(make_ok_resp(device))
         } else {
             Json(RespMessage::<PrDevice>::new(100))
         }
@@ -90,7 +90,7 @@ impl PrDeviceHandler {
     pub async fn query_devices(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>, query: Query<HashMap<String, String>>) -> Json<RespMessage<Vec<PrDevice>>> {
         let db = context.lock().await.database.clone();
         let devices = db.lock().await.query_devices(1, 10).await;
-        Json(make_ok_resp_message(devices))
+        Json(make_ok_resp(devices))
     }
 
     pub async fn append_used_time(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>, query: Query<HashMap<String, String>>) -> Json<RespMessage<String>>  {
@@ -98,23 +98,23 @@ impl PrDeviceHandler {
         let period = query.get("period").unwrap_or(&"".to_string()).clone();
         let period = period.parse::<i64>().unwrap_or(0);
         if period <= 0 || device_id.is_empty(){
-            return Json(make_err_resp_message(get_err_msg_pair(ERR_PARAM_INVALID)));
+            return Json(make_resp(get_err_pair(ERR_PARAM_INVALID)));
         }
         let db = context.lock().await.database.clone();
         // exists device
         let device = db.lock().await.find_device_by_id(&device_id).await;
         if let None = device {
-            return Json(make_err_resp_message(get_err_msg_pair(ERR_DEVICE_NOT_FOUND)));
+            return Json(make_resp(get_err_pair(ERR_DEVICE_NOT_FOUND)));
         }
         let device = device.unwrap();
         let target_used_time = device.used_time + period;
 
         let r = db.lock().await.update_device_field(&device_id, &"used_time".to_string(), target_used_time).await;
         if r {
-            Json(make_ok_resp_message(device_id))
+            Json(make_ok_resp(device_id))
         }
         else {
-            Json(RespMessage::<String>::new_pair(get_err_msg_pair(ERR_OPERATE_DB_FAILED)))
+            Json(make_resp(get_err_pair(ERR_OPERATE_DB_FAILED)))
         }
     }
 
