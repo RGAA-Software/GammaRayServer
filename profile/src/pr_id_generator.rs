@@ -27,8 +27,7 @@ impl PrIdGenerator {
         }
 
         let mut device_id = "".to_string();
-        let digest = md5::compute(seed.clone());
-        let digest = format!("{:x}", digest);
+        let digest = base::md5_hex(&seed.clone());
         for (index, value) in digest.as_bytes().iter().enumerate() {
             if index == 0 || index == 7 || index == 11
                 || index == 16 || index == 18 || index == 23
@@ -50,11 +49,11 @@ impl PrIdGenerator {
 
 
     pub fn generate_random_pwd(&self) -> String {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let charset: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789";
         let password: String = (0..8)
             .map(|_| {
-                let idx = rng.gen_range(0..charset.len());
+                let idx = rng.random_range(0..charset.len());
                 charset[idx] as char
             })
             .collect();

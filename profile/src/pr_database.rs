@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use futures_util::StreamExt;
 use mongodb::{
@@ -5,6 +6,7 @@ use mongodb::{
     Client,
     Collection
 };
+use mongodb::bson::Bson;
 use mongodb::options::FindOptions;
 use crate::pr_device::PrDevice;
 
@@ -42,16 +44,24 @@ impl PrDatabase {
     pub async fn query_devices(&mut self, page: i32, page_size: i32) -> Vec<PrDevice> {
         let c_device = self.c_device.clone().unwrap().clone();
         let filter = doc! { };
+        let skip = (page-1) * page_size;
+        let limit = page_size as i64;
         let mut cursor = c_device.lock().await
             .find(filter)
-            //.sort(doc! { "title": 1 })
+            // .skip(skip as u64)
+            // .limit(limit)
             .await
             .unwrap();
 
+        println!("query device, skip:{} - limit:{}", skip, limit);
+
         let mut devices: Vec<PrDevice> = Vec::new();
         while let Some(device) = cursor.next().await {
-            if let Ok(device) = device {
-                devices.push(device);
+            if let Err(e) = device {
+                println!("error connecting to MongoDB: {}", e);
+            }else {
+                println!("device: {:?}", device);
+                devices.push(device.unwrap());
             }
         }
         devices
@@ -84,5 +94,49 @@ impl PrDatabase {
         };
         let r = c_device.lock().await.find_one(filter, ).await;
         r.unwrap_or(None)
+    }
+
+    pub async fn update_device(&mut self, device_id: &String, update_info: HashMap<String, String>) -> bool {
+        let c_device = self.c_device.clone().unwrap().clone();
+        let filter_doc = doc! {
+            "device_id": device_id,
+        };
+        let mut update_doc = doc! {};
+        let mut sub_update_doc = doc! {};
+        for (k, v) in update_info {
+            sub_update_doc.insert(k, v);
+        }
+        sub_update_doc.insert("last_update_timestamp", base::get_current_timestamp());
+        update_doc.insert("$set", sub_update_doc);
+        let r = c_device.lock().await.update_one(filter_doc, update_doc).await;
+        if let Err(e) = r {
+            println!("error updating device: {}", e);
+            false
+        }
+        else {
+            true
+        }
+    }
+
+    pub async fn update_device_field<T>(&mut self, device_id: &String, key: &String, val: T) -> bool where T: Into<Bson> {
+        let c_device = self.c_device.clone().unwrap().clone();
+        let filter_doc = doc! {
+            "device_id": device_id,
+        };
+        let mut update_doc = doc! {};
+        let mut sub_update_doc = doc! {
+            key: val,
+        };
+
+        sub_update_doc.insert("last_update_timestamp", base::get_current_timestamp());
+        update_doc.insert("$set", sub_update_doc);
+        let r = c_device.lock().await.update_one(filter_doc, update_doc).await;
+        if let Err(e) = r {
+            println!("error updating device: {}", e);
+            false
+        }
+        else {
+            true
+        }
     }
 }

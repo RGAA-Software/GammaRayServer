@@ -31,6 +31,7 @@ impl PrServer {
             .route("/", get(PrServer::root))
             .route("/create/new/device", post(PrDeviceHandler::create_new_device))
             .route("/query/devices", get(PrDeviceHandler::query_devices))
+            .route("/append/used/time", post(PrDeviceHandler::append_used_time))
             // `POST /users` goes to `create_user`
             .route("/users", post(create_user))
             .with_state(self.context.clone());

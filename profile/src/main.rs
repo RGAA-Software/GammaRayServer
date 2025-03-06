@@ -5,6 +5,7 @@ mod pr_server;
 mod pr_database;
 mod pr_id_generator;
 mod pr_device_handler;
+mod pr_errors;
 
 use std::sync::Arc;
 use axum::{
