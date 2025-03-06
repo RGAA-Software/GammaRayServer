@@ -21,7 +21,13 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let context = Arc::new(Mutex::new(RelayContext::new()));
+    let context = RelayContext::new().await;
+    if let Err(err) = context {
+        tracing::error!("Create RelayContext failed: {}", err);
+        return;
+    }
+    let context = context.unwrap();
+    let context = Arc::new(Mutex::new(context));
     context.lock().await.init();
 
     let server = RelayServer::new("0.0.0.0".to_string(), 20681, context.clone());

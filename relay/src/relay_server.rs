@@ -78,10 +78,14 @@ impl RelayServer {
 
     async fn handle_socket(context: Arc<Mutex<RelayContext>>, params: HashMap<String, String>, mut socket: WebSocket, who: SocketAddr) {
         let (mut sender, mut receiver) = socket.split();
+
+        let conn_mgr = context.lock().await.device_conn_mgr.clone();
         let mut recv_task = tokio::spawn(async move {
             // todo:
             // save to redis
-            
+            let device_id = params.get("device_id").unwrap_or(&"".to_string()).clone();
+            conn_mgr.lock().await.add_connection(&device_id).await;
+
             let mut cnt = 0;
             while let Some(Ok(msg)) = receiver.next().await {
                 cnt += 1;
@@ -90,6 +94,9 @@ impl RelayServer {
                     break;
                 }
             }
+
+            // remove
+            conn_mgr.lock().await.remove_connection(&device_id).await;
             cnt
         });
 
