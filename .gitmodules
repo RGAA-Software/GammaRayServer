@@ -1,0 +1,3 @@
+[submodule "relay/tc_relay_proto"]
+	path = relay/tc_relay_proto
+	url = git@github.com:RGAA-Software/tc_relay_proto.git

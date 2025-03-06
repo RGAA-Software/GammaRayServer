@@ -2,6 +2,7 @@ mod relay_context;
 mod relay_server;
 mod relay_conn_mgr;
 mod relay_conn;
+mod proto;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;

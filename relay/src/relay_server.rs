@@ -1,3 +1,4 @@
+use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
@@ -8,6 +9,7 @@ use axum::routing::{get, post};
 use axum::{body::Bytes, extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade}, response::IntoResponse, routing::any, Router, ServiceExt};
 use axum_extra::TypedHeader;
 use futures_util::StreamExt;
+use prost::Message as ProstMessage;
 use tokio::sync::Mutex;
 use crate::relay_context::RelayContext;
 
@@ -15,11 +17,21 @@ use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
 };
+use tower_http::follow_redirect::policy::PolicyExt;
+use crate::proto::tc::{RelayMessage, RelayMessageType};
+use crate::relay_conn::RelayConn;
+use crate::relay_conn_mgr::RelayConnManager;
 
 pub struct RelayServer {
     pub host: String,
     pub port: u16,
     pub context: Arc<Mutex<RelayContext>>,
+}
+
+impl PartialEq<RelayMessageType> for i32 {
+    fn eq(&self, other: &RelayMessageType) -> bool {
+        *self == (*other as i32)
+    }
 }
 
 impl RelayServer {
@@ -77,20 +89,21 @@ impl RelayServer {
     }
 
     async fn handle_socket(context: Arc<Mutex<RelayContext>>, params: HashMap<String, String>, mut socket: WebSocket, who: SocketAddr) {
-        let (mut sender, mut receiver) = socket.split();
-
+        let (sender, mut receiver) = socket.split();
         let conn_mgr = context.lock().await.device_conn_mgr.clone();
+
         let mut recv_task = tokio::spawn(async move {
+            let sender = Arc::new(Mutex::new(sender));
             // todo:
             // save to redis
             let device_id = params.get("device_id").unwrap_or(&"".to_string()).clone();
-            conn_mgr.lock().await.add_connection(&device_id).await;
+            conn_mgr.lock().await.add_connection(&device_id, sender).await;
 
             let mut cnt = 0;
             while let Some(Ok(msg)) = receiver.next().await {
                 cnt += 1;
                 // print message and break if instructed to do so
-                if RelayServer::process_message(context.clone(), msg, who).await.is_break() {
+                if RelayServer::process_message(context.clone(), conn_mgr.clone(), msg, who).await.is_break() {
                     break;
                 }
             }
@@ -111,13 +124,36 @@ impl RelayServer {
         }
     }
 
-    async fn process_message(context: Arc<Mutex<RelayContext>>, msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
+    async fn process_message(context: Arc<Mutex<RelayContext>>,
+                             conn_mgr: Arc<Mutex<RelayConnManager>>,
+                             msg: Message,
+                             who: SocketAddr)
+        -> ControlFlow<(), ()> {
+
         match msg {
             Message::Text(t) => {
-                println!(">>> {who} sent str: {t:?}");
+
             }
-            Message::Binary(d) => {
-                println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
+            Message::Binary(data) => {
+                let data = data;
+                let m = RelayMessage::decode(data.clone());
+                if let Err(e) = m {
+                    return ControlFlow::Break(());
+                }
+                let m = m.unwrap();
+                let m_type = m.r#type;
+                if m_type == RelayMessageType::KRelayHello {
+                    conn_mgr.lock().await.on_hello().await;
+                }
+                else if m_type == RelayMessageType::KRelayHeartBeat {
+                    conn_mgr.lock().await.on_heartbeat().await;
+                }
+                else if m_type == RelayMessageType::KRelayError {
+
+                }
+                else if m_type == RelayMessageType::KRelayTargetMessage {
+                    conn_mgr.lock().await.on_relay(data).await;
+                }
             }
             Message::Close(c) => {
                 if let Some(cf) = c {
@@ -132,7 +168,7 @@ impl RelayServer {
             }
 
             Message::Pong(v) => {
-                println!(">>> {who} sent pong with {v:?}");
+
             }
             // You should never need to manually handle Message::Ping, as axum's websocket library
             // will do so for you automagically by replying with Pong and copying the v according to
