@@ -20,13 +20,7 @@ use base::json_util;
 use crate::proto::tc::{RelayMessage, RelayMessageType};
 use crate::relay_conn::RelayConn;
 use crate::relay_conn_mgr::RelayConnManager;
-
-const SIG_TYPE_HELLO: &str = "hello";
-const SIG_TYPE_HEARTBEAT: &str = "heartbeat";
-const SIG_TYPE_ERROR: &str = "error";
-const SIG_TYPE_CREATE_ROOM: &str = "create_room";
-const SIG_TYPE_REQUEST_CONTROL: &str = "request_control";
-const SIG_TYPE_REQUEST_CONTROL_RESP: &str = "request_control_response";
+use crate::relay_message;
 
 pub struct RelayServer {
     pub host: String,
@@ -104,13 +98,11 @@ impl RelayServer {
         let mut recv_task = tokio::spawn(async move {
             let device_id = params.get("device_id").unwrap_or(&"".to_string()).clone();
             let sender = Arc::new(Mutex::new(sender));
-            let relay_conn = RelayConn::new(context.clone(), sender, device_id.clone());
+            let relay_conn = RelayConn::new(context.clone(), sender, device_id.clone()).await;
 
             conn_mgr.lock().await.add_connection(&device_id, relay_conn.clone()).await;
 
-            let mut cnt = 0;
             while let Some(Ok(msg)) = receiver.next().await {
-                cnt += 1;
                 // print message and break if instructed to do so
                 if RelayServer::process_message(context.clone(), relay_conn.clone(), msg, who).await.is_break() {
                     break;
@@ -119,14 +111,15 @@ impl RelayServer {
 
             // remove
             conn_mgr.lock().await.remove_connection(&device_id).await;
-            cnt
         });
 
         tokio::select! {
             rv_a = (&mut recv_task) => {
                 match rv_a {
-                    Ok(a) => println!("{a} messages sent to {who}"),
-                    Err(a) => println!("Error sending messages {a:?}")
+                    Ok(_) => {},
+                    Err(e) => {
+                        tracing::error!("receive task error: {e:?}")
+                    }
                 }
                 recv_task.abort();
             },
@@ -142,6 +135,9 @@ impl RelayServer {
         let conn_mgr = context.lock().await.conn_mgr.clone();
         match msg {
             Message::Text(data) => {
+                // append received data size
+                relay_conn.lock().await.append_received_data_size(data.len()).await;
+                // parse json
                 let value: serde_json::error::Result<serde_json::Value> = serde_json::from_str(data.as_str());
                 if let Err(e) = value {
                     tracing::error!("parse json error: {e}, json: {}", data.to_string());
@@ -149,39 +145,29 @@ impl RelayServer {
                 }
 
                 let value = value.unwrap();
-                let m_type = json_util::get_string(&value, "type");
-                let device_id = json_util::get_string(&value, "device_id");
-
+                let m_type = json_util::get_string(&value, relay_message::KEY_TYPE);
+                let device_id = json_util::get_string(&value, relay_message::KEY_DEVICE_ID);
+                if m_type == relay_message::SIG_TYPE_HELLO {
+                    relay_conn.lock().await.on_hello(value);
+                }
+                else if m_type == relay_message::SIG_TYPE_HEARTBEAT {
+                    relay_conn.lock().await.on_heartbeat(value);
+                }
+                else if m_type == relay_message::SIG_TYPE_REMOTE_ERROR {
+                    relay_conn.lock().await.on_remote_error(value).await;
+                }
+                else if m_type == relay_message::SIG_TYPE_CREATE_ROOM {
+                    relay_conn.lock().await.on_create_room(value).await;
+                }
+                else if m_type == relay_message::SIG_TYPE_REQUEST_CONTROL {
+                    relay_conn.lock().await.on_request_control(value).await;
+                }
+                else if m_type == relay_message::SIG_TYPE_REQUEST_CONTROL_RESP {
+                    relay_conn.lock().await.on_request_control_resp(value).await;
+                }
             }
             Message::Binary(data) => {
-                let data = data;
-                let m = RelayMessage::decode(data.clone());
-                if let Err(e) = m {
-                    return ControlFlow::Break(());
-                }
-                let m = m.unwrap();
-                let m_type = m.r#type;
-                if m_type == RelayMessageType::KRelayHello {
-                    relay_conn.lock().await.on_hello().await;
-                }
-                else if m_type == RelayMessageType::KRelayHeartBeat {
-                    relay_conn.lock().await.on_heartbeat().await;
-                }
-                else if m_type == RelayMessageType::KRelayError {
-                    relay_conn.lock().await.on_error(m).await;
-                }
-                else if m_type == RelayMessageType::KRelayTargetMessage {
-                    relay_conn.lock().await.on_relay(m, data).await;
-                }
-                else if m_type == RelayMessageType::KRelayCreateRoom {
-
-                }
-                else if m_type == RelayMessageType::KRelayRequestControl {
-
-                }
-                else if m_type == RelayMessageType::KRelayRequestControlResp {
-
-                }
+                relay_conn.lock().await.on_relay(data).await;
             }
             Message::Close(c) => {
                 if let Some(cf) = c {

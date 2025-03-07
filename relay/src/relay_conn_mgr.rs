@@ -43,5 +43,7 @@ impl RelayConnManager {
         //     .del::<String, ()>(conn_redis_id).await;
     }
 
-    
+    pub async fn get_connection(&self, device_id: &String) -> Option<Arc<Mutex<RelayConn>>> {
+        self.relay_conns.lock().await.get(device_id).cloned()
+    }
 }

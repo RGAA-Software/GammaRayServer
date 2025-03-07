@@ -5,6 +5,7 @@ mod relay_conn;
 mod proto;
 mod relay_room_mgr;
 mod relay_device_mgr;
+mod relay_message;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
