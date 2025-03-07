@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use axum::extract::{ConnectInfo, Query, State};
 use axum::routing::{get, post};
-use axum::{body::Bytes, extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade}, response::IntoResponse, routing::any, Router, ServiceExt};
+use axum::{extract::ws::{Message, WebSocket, WebSocketUpgrade}, response::IntoResponse, routing::any, Router, ServiceExt};
 use axum_extra::TypedHeader;
 use futures_util::StreamExt;
 use prost::Message as ProstMessage;
@@ -15,12 +15,18 @@ use crate::relay_context::RelayContext;
 
 use tower_http::{
     services::ServeDir,
-    trace::{DefaultMakeSpan, TraceLayer},
 };
-use tower_http::follow_redirect::policy::PolicyExt;
+use base::json_util;
 use crate::proto::tc::{RelayMessage, RelayMessageType};
 use crate::relay_conn::RelayConn;
 use crate::relay_conn_mgr::RelayConnManager;
+
+const SIG_TYPE_HELLO: &str = "hello";
+const SIG_TYPE_HEARTBEAT: &str = "heartbeat";
+const SIG_TYPE_ERROR: &str = "error";
+const SIG_TYPE_CREATE_ROOM: &str = "create_room";
+const SIG_TYPE_REQUEST_CONTROL: &str = "request_control";
+const SIG_TYPE_REQUEST_CONTROL_RESP: &str = "request_control_response";
 
 pub struct RelayServer {
     pub host: String,
@@ -135,7 +141,16 @@ impl RelayServer {
 
         let conn_mgr = context.lock().await.conn_mgr.clone();
         match msg {
-            Message::Text(t) => {
+            Message::Text(data) => {
+                let value: serde_json::error::Result<serde_json::Value> = serde_json::from_str(data.as_str());
+                if let Err(e) = value {
+                    tracing::error!("parse json error: {e}, json: {}", data.to_string());
+                    return ControlFlow::Break(());
+                }
+
+                let value = value.unwrap();
+                let m_type = json_util::get_string(&value, "type");
+                let device_id = json_util::get_string(&value, "device_id");
 
             }
             Message::Binary(data) => {
