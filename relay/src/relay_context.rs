@@ -3,6 +3,7 @@ use redis::aio::MultiplexedConnection;
 use tokio::sync::Mutex;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_device_mgr::RelayDeviceManager;
+use crate::relay_room::RelayRoom;
 use crate::relay_room_mgr::RelayRoomManager;
 
 pub struct RelayContext {
@@ -21,9 +22,15 @@ impl RelayContext {
         }
         let redis_conn = redis_conn.unwrap();
         let redis_conn = Arc::new(Mutex::new(redis_conn));
+
+        let conn_mgr = Arc::new(Mutex::new(RelayConnManager::new()));
+
+        let room_mgr = RelayRoomManager::new(redis_conn.clone(), conn_mgr.clone());
+        let room_mgr = Arc::new(Mutex::new(room_mgr));
+
         Ok(RelayContext {
-            conn_mgr: Arc::new(Mutex::new(RelayConnManager::new())),
-            room_mgr: Arc::new(Mutex::new(RelayRoomManager::new(redis_conn.clone()))),
+            conn_mgr,
+            room_mgr,
             device_mgr: Arc::new(Mutex::new(RelayDeviceManager::new())),
             redis_conn,
         })

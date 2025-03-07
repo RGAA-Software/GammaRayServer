@@ -19,4 +19,5 @@ pub const KEY_MESSAGE: &str = "message";
 pub const KEY_WHICH_MESSAGE: &str = "which_message";
 pub const KEY_INDEX: &str = "index";
 pub const KEY_UNDER_CONTROL: &str = "under_control";
-
+pub const KEY_CREATE_TIMESTAMP: &str = "create_timestamp";
+pub const KEY_LAST_UPDATE_TIMESTAMP: &str = "last_update_timestamp";
