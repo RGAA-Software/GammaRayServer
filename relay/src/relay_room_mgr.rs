@@ -1,9 +1,12 @@
 use std::cmp::max;
 use std::collections::HashMap;
 use std::sync::Arc;
+use axum::body::Bytes;
+use prost::Message;
 use redis::aio::MultiplexedConnection;
 use redis::{AsyncCommands, Commands, RedisResult};
 use tokio::sync::Mutex;
+use crate::proto::tc::{RelayMessage, RelayMessageType, RelayRoomDestroyedMessage};
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_message::{KEY_CREATE_TIMESTAMP, KEY_DEVICE_ID, KEY_LAST_UPDATE_TIMESTAMP, KEY_REMOTE_DEVICE_ID, KEY_ROOM_ID};
 use crate::relay_room::RelayRoom;
@@ -170,6 +173,20 @@ impl RelayRoomManager {
 
             if !target_remote_device_id.is_empty() {
                 // todo: Notify it, room has been destroyed.
+                let mut rl_msg = RelayMessage::default();
+                rl_msg.set_type(RelayMessageType::KRelayRoomDestroyed);
+                rl_msg.room_destroyed = Some(RelayRoomDestroyedMessage {
+                    room_id: room_id.clone(),
+                    device_id: device_id.clone(),
+                    remote_device_id: target_remote_device_id.clone(),
+                });
+                let r = rl_msg.encode_to_vec();
+                if let Some(remote_device) = self.conn_mgr.lock().await
+                    .get_connection(&target_remote_device_id).await {
+                    tokio::spawn(async move {
+                        _ = remote_device.lock().await.send_binary_message(Bytes::from(r)); 
+                    });
+                }
             }
 
             //

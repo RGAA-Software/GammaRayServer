@@ -37,10 +37,6 @@ impl RelayConnManager {
     
     pub async fn remove_connection(&self, device_id: &String) {
         self.relay_conns.lock().await.remove(device_id);
-        // let conn_redis_id = format!("relay_conn:{}", device_id.clone());
-        // let r = self.redis_conn
-        //     .lock().await
-        //     .del::<String, ()>(conn_redis_id).await;
     }
 
     pub async fn get_connection(&self, device_id: &String) -> Option<Arc<Mutex<RelayConn>>> {

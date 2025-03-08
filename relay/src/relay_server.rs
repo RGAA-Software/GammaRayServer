@@ -94,6 +94,7 @@ impl RelayServer {
                            who: SocketAddr) {
         let (sender, mut receiver) = socket.split();
         let conn_mgr = context.lock().await.conn_mgr.clone();
+        let room_mgr = context.lock().await.room_mgr.clone();
 
         let mut recv_task = tokio::spawn(async move {
             let device_id = params.get("device_id").unwrap_or(&"".to_string()).clone();
@@ -109,8 +110,10 @@ impl RelayServer {
                 }
             }
 
-            // remove
+            // remove connection
             conn_mgr.lock().await.remove_connection(&device_id).await;
+            // remote room
+            room_mgr.lock().await.destroy_room_by_creator(device_id).await;
         });
 
         tokio::select! {
@@ -173,6 +176,7 @@ impl RelayServer {
                 else if m_type == RelayMessageType::KRelayRequestControlResp {
                     relay_conn.lock().await.on_request_control_resp(m, data).await;
                 }
+                return ControlFlow::Continue(());
             }
             Message::Close(c) => {
                 if let Some(cf) = c {
