@@ -104,9 +104,11 @@ impl RelayRoomManager {
 
         if let Some(device) =  self.conn_mgr.lock().await.get_connection(&relay_room.device_id).await {
             relay_room.devices.insert(relay_room.device_id.clone(), device.clone());
+            //tracing::info!("found device {:?}", relay_room.device_id);
         }
         if let Some(remote_device) = self.conn_mgr.lock().await.get_connection(&relay_room.remote_device_id).await {
             relay_room.devices.insert(relay_room.remote_device_id.clone(), remote_device.clone());
+            //tracing::info!("found remote device {:?}", relay_room.remote_device_id);
         }
 
         if relay_room.is_valid() {

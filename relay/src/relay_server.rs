@@ -143,31 +143,36 @@ impl RelayServer {
                     tracing::error!("parse json error: {e}, json: {}", data.to_string());
                     return ControlFlow::Break(());
                 }
-
-                let value = value.unwrap();
-                let m_type = json_util::get_string(&value, relay_message::KEY_TYPE);
-                let device_id = json_util::get_string(&value, relay_message::KEY_DEVICE_ID);
-                if m_type == relay_message::SIG_TYPE_HELLO {
-                    relay_conn.lock().await.on_hello(value);
-                }
-                else if m_type == relay_message::SIG_TYPE_HEARTBEAT {
-                    relay_conn.lock().await.on_heartbeat(value);
-                }
-                else if m_type == relay_message::SIG_TYPE_REMOTE_ERROR {
-                    relay_conn.lock().await.on_remote_error(value).await;
-                }
-                else if m_type == relay_message::SIG_TYPE_CREATE_ROOM {
-                    relay_conn.lock().await.on_create_room(value).await;
-                }
-                else if m_type == relay_message::SIG_TYPE_REQUEST_CONTROL {
-                    relay_conn.lock().await.on_request_control(value).await;
-                }
-                else if m_type == relay_message::SIG_TYPE_REQUEST_CONTROL_RESP {
-                    relay_conn.lock().await.on_request_control_resp(value).await;
-                }
             }
             Message::Binary(data) => {
-                relay_conn.lock().await.on_relay(data).await;
+                relay_conn.lock().await.append_received_data_size(data.len()).await;
+                let m = RelayMessage::decode(data.clone());
+                if let Err(e) = m {
+                    return ControlFlow::Break(());
+                }
+                let m = m.unwrap();
+                let m_type = m.r#type;
+                if m_type == RelayMessageType::KRelayHello {
+                    relay_conn.lock().await.on_hello(m).await;
+                }
+                else if m_type == RelayMessageType::KRelayHeartBeat {
+                    relay_conn.lock().await.on_heartbeat(m).await;
+                }
+                else if m_type == RelayMessageType::KRelayError {
+                    relay_conn.lock().await.on_error(m).await
+                }
+                else if m_type == RelayMessageType::KRelayTargetMessage {
+                    relay_conn.lock().await.on_relay(m, data).await;
+                }
+                else if m_type == RelayMessageType::KRelayCreateRoom {
+                    relay_conn.lock().await.on_create_room(m, data).await;
+                }
+                else if m_type == RelayMessageType::KRelayRequestControl {
+                    relay_conn.lock().await.on_request_control(m, data).await;
+                }
+                else if m_type == RelayMessageType::KRelayRequestControlResp {
+                    relay_conn.lock().await.on_request_control_resp(m, data).await;
+                }
             }
             Message::Close(c) => {
                 if let Some(cf) = c {
