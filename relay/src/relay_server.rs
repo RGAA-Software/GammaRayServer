@@ -135,7 +135,7 @@ impl RelayServer {
                              who: SocketAddr)
         -> ControlFlow<(), ()> {
 
-        let conn_mgr = context.lock().await.conn_mgr.clone();
+        let room_mgr = context.lock().await.room_mgr.clone();
         match msg {
             Message::Text(data) => {
                 // append received data size
@@ -165,16 +165,20 @@ impl RelayServer {
                     relay_conn.lock().await.on_error(m).await
                 }
                 else if m_type == RelayMessageType::KRelayTargetMessage {
-                    relay_conn.lock().await.on_relay(m, data).await;
+                    //relay_conn.lock().await.on_relay(m, data).await;
+                    //relay_conn.self.append_received_data_size(om.len()).await;
+                    room_mgr.lock().await.on_relay(m, data).await;
                 }
                 else if m_type == RelayMessageType::KRelayCreateRoom {
-                    relay_conn.lock().await.on_create_room(m, data).await;
+                    //relay_conn.lock().await.on_create_room(m, data).await;
+                    room_mgr.lock().await.on_create_room(m, data).await;
                 }
                 else if m_type == RelayMessageType::KRelayRequestControl {
-                    relay_conn.lock().await.on_request_control(m, data).await;
+                    //relay_conn.lock().await.on_request_control(m, data).await;
+                    room_mgr.lock().await.on_request_control(m, data).await;
                 }
                 else if m_type == RelayMessageType::KRelayRequestControlResp {
-                    relay_conn.lock().await.on_request_control_resp(m, data).await;
+                    room_mgr.lock().await.on_request_control_resp(m, data).await;
                 }
                 return ControlFlow::Continue(());
             }
