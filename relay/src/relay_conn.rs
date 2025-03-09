@@ -191,7 +191,7 @@ impl RelayConn {
     // send back to this connection itself.
     pub async fn send_binary_message(&mut self, om: Bytes) -> bool {
         if !self.is_alive() {
-            tracing::warn!("this device is not alive...")
+            tracing::warn!("this device is not alive : {}", self.device_id);
         }
         let size = om.len();
         let r = self.sender.lock().await.send(Message::Binary(om)).await;

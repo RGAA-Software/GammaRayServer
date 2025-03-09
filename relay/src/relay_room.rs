@@ -34,18 +34,15 @@ impl RelayRoom {
     }
     
     pub async fn notify_except(&self, except_id: &String, m: Bytes) {
-        tracing::info!("notify_except: {:?}, have {} devices", except_id, self.devices.len());
-        for device in self.devices.values() {
-            let device_id = device.lock().await.device_id.clone();
+        for (device_id, device) in self.devices.iter() {
             if *device_id == *except_id {
-                tracing::info!("ignore the device: {}", device_id);
                 continue;
             }
-            
+
             let device = device.clone();
             let m = m.clone();
+            let device_id = device_id.clone();
             tokio::spawn(async move {
-                tracing::info!("relay to: {}", device_id);
                 let r = device.lock().await.send_binary_message(m).await;
                 if !r {
                     tracing::warn!("notify to this device failed: {}", device_id)
