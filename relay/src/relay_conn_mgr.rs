@@ -23,16 +23,6 @@ impl RelayConnManager {
     
     pub async fn add_connection(&mut self, device_id: &String, relay_conn: Arc<Mutex<RelayConn>>) {
         self.relay_conns.lock().await.insert(device_id.clone(), relay_conn);
-        // let conn_redis_id = format!("relay_conn:{}", device_id.clone());
-        // let conn_info = [
-        //     ("device_id", conn_redis_id.clone()),
-        //     ("connected_timestamp", base::get_current_timestamp().to_string()),
-        //     ("last_update_timestamp", base::get_current_timestamp().to_string()),
-        // ];
-        //
-        // let r = self.redis_conn
-        //     .lock().await
-        //     .hset_multiple::<String, &str, String, ()>(conn_redis_id, &conn_info).await;
     }
     
     pub async fn remove_connection(&self, device_id: &String) {

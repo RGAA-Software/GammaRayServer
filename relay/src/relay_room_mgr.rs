@@ -173,7 +173,6 @@ impl RelayRoomManager {
             }
 
             if !target_remote_device_id.is_empty() {
-                // todo: Notify it, room has been destroyed.
                 let mut rl_msg = RelayMessage::default();
                 rl_msg.set_type(RelayMessageType::KRelayRoomDestroyed);
                 rl_msg.room_destroyed = Some(RelayRoomDestroyedMessage {
@@ -231,7 +230,7 @@ impl RelayRoomManager {
     pub async fn on_create_room(&self, m: RelayMessage, om: Bytes) {
         let sub = m.create_room.unwrap();
         let room = self.create_room(sub.device_id.clone(), sub.remote_device_id.clone()).await;
-        let mut resp_msg;
+        let resp_msg;
         if let Some(room) = room {
             tracing::info!("created room: {}", room.room_id);
             let mut rl_msg = RelayMessage::default();
@@ -243,12 +242,9 @@ impl RelayRoomManager {
             });
 
             resp_msg = rl_msg.encode_to_vec();
-            //self.send_binary_message(Bytes::from(r)).await;
-            //room.notify_target(&sub.device_id, om).await;
         }
         else {
             resp_msg = make_error_message(RelayErrorCode::KRelayCodeCreateRoomFailed);
-            //self.send_binary_message(Bytes::from(r)).await;
         }
 
         if let Some(device) = self.conn_mgr.lock().await
@@ -316,14 +312,11 @@ impl RelayRoomManager {
             // 1. to requester
             tokio::spawn(async move {
                 req_device.lock().await.send_binary_message(Bytes::from(r)).await;
-                tracing::info!("send prepared to device: {}", sub.device_id);
             });
 
             // 2. to remote
             tokio::spawn(async move {
-                tracing::info!("before send prepared to remote : {}", remote_device_id);
                 resp_device.lock().await.send_binary_message(Bytes::from(rr)).await;
-                tracing::info!("send prepared to remote : {}", remote_device_id);
             });
         }
     }
