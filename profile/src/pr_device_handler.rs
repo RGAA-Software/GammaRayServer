@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::Json;
 use tokio::task::id;
-use base::{make_resp, make_ok_resp};
+use base::{make_resp_empty_str, make_ok_resp};
 use crate::pr_context::PrContext;
 use crate::pr_device::PrDevice;
 use crate::RespMessage;
@@ -98,13 +98,13 @@ impl PrDeviceHandler {
         let period = query.get("period").unwrap_or(&"".to_string()).clone();
         let period = period.parse::<i64>().unwrap_or(0);
         if period <= 0 || device_id.is_empty(){
-            return Json(make_resp(get_err_pair(ERR_PARAM_INVALID)));
+            return Json(make_resp_empty_str(get_err_pair(ERR_PARAM_INVALID)));
         }
         let db = context.lock().await.database.clone();
         // exists device
         let device = db.lock().await.find_device_by_id(&device_id).await;
         if let None = device {
-            return Json(make_resp(get_err_pair(ERR_DEVICE_NOT_FOUND)));
+            return Json(make_resp_empty_str(get_err_pair(ERR_DEVICE_NOT_FOUND)));
         }
         let device = device.unwrap();
         let target_used_time = device.used_time + period;
@@ -114,7 +114,7 @@ impl PrDeviceHandler {
             Json(make_ok_resp(device_id))
         }
         else {
-            Json(make_resp(get_err_pair(ERR_OPERATE_DB_FAILED)))
+            Json(make_resp_empty_str(get_err_pair(ERR_OPERATE_DB_FAILED)))
         }
     }
 

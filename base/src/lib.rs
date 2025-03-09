@@ -1,8 +1,12 @@
 pub mod json_util;
 pub mod string_util;
 
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+pub type StringMap = HashMap<String, String>;
+pub type RespStringMap = RespMessage<StringMap>;
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct RespMessage<T> where T: Serialize, T: Default {
@@ -50,11 +54,37 @@ pub fn make_ok_resp<T>(value: T) -> RespMessage<T> where T: Serialize, T: Defaul
     }
 }
 
-pub fn make_resp(pair: RespMsgPair) -> RespMessage<String>{
+pub fn make_resp_empty_str(pair: RespMsgPair) -> RespMessage<String>{
     RespMessage::<String> {
         code: pair.code,
         message: pair.message,
         data: String::new(),
+    }
+}
+
+pub fn make_resp_empty_str_map(pair: RespMsgPair) -> RespStringMap {
+    RespMessage::<StringMap> {
+        code: pair.code,
+        message: pair.message,
+        data: StringMap::new(),
+    }
+}
+
+pub fn make_ok_resp_str_map(data: HashMap<String, String>) -> RespStringMap {
+    RespMessage::<StringMap> {
+        code: 200,
+        message: "ok".to_string(),
+        data,
+    }
+}
+
+pub fn get_query_param(params: &HashMap<String, String>, key: &str) -> Option<String> {
+    let value = params.get(key);
+    if let Some(value) = value {
+        Some(value.to_string())
+    }
+    else {
+        None
     }
 }
 

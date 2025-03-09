@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use axum::extract::{ConnectInfo, Query, State};
 use axum::routing::{get, post};
-use axum::{extract::ws::{Message, WebSocket, WebSocketUpgrade}, response::IntoResponse, routing::any, Router, ServiceExt};
+use axum::{extract::ws::{Message, WebSocket, WebSocketUpgrade}, response::IntoResponse, routing::any, Json, Router, ServiceExt};
 use axum_extra::TypedHeader;
 use futures_util::StreamExt;
 use prost::Message as ProstMessage;
@@ -16,11 +16,11 @@ use crate::relay_context::RelayContext;
 use tower_http::{
     services::ServeDir,
 };
-use base::json_util;
+use base::{json_util, RespMessage};
 use crate::proto::tc::{RelayMessage, RelayMessageType};
 use crate::relay_conn::RelayConn;
 use crate::relay_conn_mgr::RelayConnManager;
-use crate::relay_message;
+use crate::{relay_message, relay_room_handler};
 
 pub struct RelayServer {
     pub host: String,
@@ -50,6 +50,7 @@ impl RelayServer {
             .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
             .route("/", get(RelayServer::root))
             .route("/relay", any(RelayServer::ws_handler))
+            .route("/query/room", get(relay_room_handler::hr_query_room))
             .with_state(self.context.clone());
             // .layer(
             //     TraceLayer::new_for_http()
@@ -62,8 +63,12 @@ impl RelayServer {
         axum::serve(listener,  app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
     }
 
-    pub async fn root(State(ctx): State<Arc<Mutex<RelayContext>>>) -> &'static str {
-        "Hello, World!"
+    pub async fn root(State(ctx): State<Arc<Mutex<RelayContext>>>) -> Json<RespMessage<String>> {
+        Json(RespMessage::<String> {
+            code: 200,
+            message: "ok".to_string(),
+            data: "Working".to_string(),
+        })
     }
 
     async fn ws_handler(
