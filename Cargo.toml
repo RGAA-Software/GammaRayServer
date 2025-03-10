@@ -2,6 +2,7 @@
 members = [
     "base",
     "profile",
+    "protocol",
     "relay",
     "supervisor"
 ]
