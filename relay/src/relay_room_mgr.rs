@@ -7,7 +7,7 @@ use redis::aio::MultiplexedConnection;
 use redis::{AsyncCommands, Commands, RedisResult};
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
-use crate::proto::tc::{RelayCreateRoomRespMessage, RelayErrorCode, RelayMessage, RelayMessageType, RelayRoomDestroyedMessage, RelayRoomPreparedMessage};
+use protocol::relay::{RelayCreateRoomRespMessage, RelayErrorCode, RelayMessage, RelayMessageType, RelayRoomDestroyedMessage, RelayRoomPreparedMessage};
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_message::{KEY_CREATE_TIMESTAMP, KEY_DEVICE_ID, KEY_LAST_UPDATE_TIMESTAMP, KEY_REMOTE_DEVICE_ID, KEY_ROOM_ID};
 use crate::relay_proto_maker::make_error_message;

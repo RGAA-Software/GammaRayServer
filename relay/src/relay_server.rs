@@ -17,7 +17,7 @@ use tower_http::{
     services::ServeDir,
 };
 use base::{json_util, RespMessage};
-use crate::proto::tc::{RelayMessage, RelayMessageType};
+use protocol::relay::{RelayMessage, RelayMessageType};
 use crate::relay_conn::RelayConn;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::{relay_message, relay_room_handler};
@@ -26,12 +26,6 @@ pub struct RelayServer {
     pub host: String,
     pub port: u16,
     pub context: Arc<Mutex<RelayContext>>,
-}
-
-impl PartialEq<RelayMessageType> for i32 {
-    fn eq(&self, other: &RelayMessageType) -> bool {
-        *self == (*other as i32)
-    }
 }
 
 impl RelayServer {

@@ -7,7 +7,6 @@ use futures_util::stream::SplitSink;
 use redis::aio::MultiplexedConnection;
 use redis::{AsyncCommands, Value};
 use tokio::sync::Mutex;
-use crate::proto::tc::RelayMessage;
 use crate::relay_conn::RelayConn;
 
 pub struct RelayConnManager {

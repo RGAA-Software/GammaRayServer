@@ -1,6 +1,6 @@
 use std::cmp::PartialEq;
 use prost::Message;
-use crate::proto::tc::{RelayErrorCode, RelayErrorMessage, RelayMessage, RelayMessageType};
+use protocol::relay::{RelayErrorCode, RelayErrorMessage, RelayMessage, RelayMessageType};
 
 pub fn make_error_message(code: RelayErrorCode) -> Vec<u8> {
     let mut rl_msg = RelayMessage::default();

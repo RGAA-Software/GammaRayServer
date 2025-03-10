@@ -7,7 +7,7 @@ use prost::bytes::BytesMut;
 use prost::Message as ProstMessage;
 use redis::AsyncCommands;
 use tokio::sync::Mutex;
-use crate::proto::tc::{RelayCreateRoomRespMessage, RelayErrorCode, RelayMessage, RelayMessageType, RelayRoomPreparedMessage};
+use protocol::relay::RelayMessage;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_context::RelayContext;
 use crate::relay_proto_maker::make_error_message;
