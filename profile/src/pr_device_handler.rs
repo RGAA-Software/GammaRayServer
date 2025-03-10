@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::Json;
 use tokio::task::id;
-use base::{make_resp_empty_str, make_ok_resp};
+use base::{resp_empty_str, ok_resp};
 use crate::pr_context::PrContext;
 use crate::pr_device::PrDevice;
 use crate::RespMessage;
@@ -80,7 +80,7 @@ impl PrDeviceHandler {
 
         // resp
         if let Some(device) = device {
-            Json(make_ok_resp(device))
+            Json(ok_resp(device))
         } else {
             Json(RespMessage::<PrDevice>::new(100))
         }
@@ -90,7 +90,7 @@ impl PrDeviceHandler {
     pub async fn query_devices(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>, query: Query<HashMap<String, String>>) -> Json<RespMessage<Vec<PrDevice>>> {
         let db = context.lock().await.database.clone();
         let devices = db.lock().await.query_devices(1, 10).await;
-        Json(make_ok_resp(devices))
+        Json(ok_resp(devices))
     }
 
     pub async fn append_used_time(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>, query: Query<HashMap<String, String>>) -> Json<RespMessage<String>>  {
@@ -98,23 +98,23 @@ impl PrDeviceHandler {
         let period = query.get("period").unwrap_or(&"".to_string()).clone();
         let period = period.parse::<i64>().unwrap_or(0);
         if period <= 0 || device_id.is_empty(){
-            return Json(make_resp_empty_str(get_err_pair(ERR_PARAM_INVALID)));
+            return Json(resp_empty_str(get_err_pair(ERR_PARAM_INVALID)));
         }
         let db = context.lock().await.database.clone();
         // exists device
         let device = db.lock().await.find_device_by_id(&device_id).await;
         if let None = device {
-            return Json(make_resp_empty_str(get_err_pair(ERR_DEVICE_NOT_FOUND)));
+            return Json(resp_empty_str(get_err_pair(ERR_DEVICE_NOT_FOUND)));
         }
         let device = device.unwrap();
         let target_used_time = device.used_time + period;
 
         let r = db.lock().await.update_device_field(&device_id, &"used_time".to_string(), target_used_time).await;
         if r {
-            Json(make_ok_resp(device_id))
+            Json(ok_resp(device_id))
         }
         else {
-            Json(make_resp_empty_str(get_err_pair(ERR_OPERATE_DB_FAILED)))
+            Json(resp_empty_str(get_err_pair(ERR_OPERATE_DB_FAILED)))
         }
     }
 

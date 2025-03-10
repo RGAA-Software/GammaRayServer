@@ -5,6 +5,7 @@ use axum::body::Bytes;
 use prost::Message;
 use redis::aio::MultiplexedConnection;
 use redis::{AsyncCommands, Commands, RedisResult};
+use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 use crate::proto::tc::{RelayCreateRoomRespMessage, RelayErrorCode, RelayMessage, RelayMessageType, RelayRoomDestroyedMessage, RelayRoomPreparedMessage};
 use crate::relay_conn_mgr::RelayConnManager;
@@ -122,28 +123,25 @@ impl RelayRoomManager {
         }
     }
 
-    pub async fn find_rooms(&self, page: i32, page_size: i32) -> Vec<RelayRoom> {
+    pub async fn find_room_ids(&self, page: i32, page_size: i32) -> Vec<String> {
         let begin = max(0, page - 1) * page_size;
 
         let conn = &mut *self.redis_conn.lock().await;
         let pattern = "relay-room:*";
-        let max_keys = 10;
         let cursor = begin as u64;
-        let r: RedisResult<Vec<String>> = redis::cmd("SCAN")
+        let r: RedisResult<(u64, Vec<String>)> = redis::cmd("SCAN")
             .cursor_arg(cursor)
             .arg("MATCH").arg(pattern)
             .arg("COUNT").arg(page_size)
             .query_async(conn)
             .await;
         if let Err(err) = r {
+            tracing::error!("Could not find rooms in redis, err: {}", err);
             return Vec::new()
         }
         let room_ids = r.unwrap();
-        room_ids.iter().for_each(|room_id| {
-            tracing::info!("Found room {}", room_id);
-        });
-
-        Vec::new()
+        tracing::info!("room ids: {:#?}", room_ids);
+        room_ids.1
     }
 
     pub async fn destroy_room_by_creator(&self, device_id: String) {

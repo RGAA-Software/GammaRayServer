@@ -7,6 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub type StringMap = HashMap<String, String>;
 pub type RespStringMap = RespMessage<StringMap>;
+pub type RespVecStringMap = RespMessage<Vec<StringMap>>;
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct RespMessage<T> where T: Serialize, T: Default {
@@ -46,7 +47,7 @@ impl <T> RespMessage<T> where T: Serialize, T: Default {
     }
 }
 
-pub fn make_ok_resp<T>(value: T) -> RespMessage<T> where T: Serialize, T: Default {
+pub fn ok_resp<T>(value: T) -> RespMessage<T> where T: Serialize, T: Default {
     RespMessage::<T> {
         code: 200,
         message: "ok".to_string(),
@@ -54,7 +55,7 @@ pub fn make_ok_resp<T>(value: T) -> RespMessage<T> where T: Serialize, T: Defaul
     }
 }
 
-pub fn make_resp_empty_str(pair: RespMsgPair) -> RespMessage<String>{
+pub fn resp_empty_str(pair: RespMsgPair) -> RespMessage<String>{
     RespMessage::<String> {
         code: pair.code,
         message: pair.message,
@@ -62,7 +63,7 @@ pub fn make_resp_empty_str(pair: RespMsgPair) -> RespMessage<String>{
     }
 }
 
-pub fn make_resp_empty_str_map(pair: RespMsgPair) -> RespStringMap {
+pub fn resp_empty_str_map(pair: RespMsgPair) -> RespStringMap {
     RespMessage::<StringMap> {
         code: pair.code,
         message: pair.message,
@@ -70,10 +71,26 @@ pub fn make_resp_empty_str_map(pair: RespMsgPair) -> RespStringMap {
     }
 }
 
-pub fn make_ok_resp_str_map(data: HashMap<String, String>) -> RespStringMap {
+pub fn resp_empty_vec_str_map(pair: RespMsgPair) -> RespVecStringMap {
+    RespMessage::<Vec<StringMap>> {
+        code: pair.code,
+        message: pair.message,
+        data: Vec::new(),
+    }
+}
+
+pub fn ok_resp_str_map(data: HashMap<String, String>) -> RespStringMap {
     RespMessage::<StringMap> {
         code: 200,
         message: "ok".to_string(),
+        data,
+    }
+}
+
+pub fn ok_resp_vec_str_map(data: Vec<HashMap<String, String>>) -> RespVecStringMap {
+    RespMessage::<Vec<StringMap>> {
+        code: 0,
+        message: "".to_string(),
         data,
     }
 }
