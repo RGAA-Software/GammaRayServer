@@ -79,6 +79,14 @@ pub fn resp_empty_vec_str_map(pair: RespMsgPair) -> RespVecStringMap {
     }
 }
 
+pub fn ok_resp_str(data: String) -> RespMessage<String> {
+    RespMessage::<String> {
+        code: 200,
+        message: "ok".to_string(),
+        data,
+    }
+}
+
 pub fn ok_resp_str_map(data: HashMap<String, String>) -> RespStringMap {
     RespMessage::<StringMap> {
         code: 200,

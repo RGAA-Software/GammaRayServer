@@ -8,6 +8,7 @@ mod relay_room;
 mod relay_proto_maker;
 mod relay_room_handler;
 mod relay_errors;
+mod relay_spvr_client;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -15,6 +16,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use crate::relay_context::RelayContext;
 use crate::relay_server::RelayServer;
+use crate::relay_spvr_client::RelaySpvrClient;
 
 #[tokio::main]
 async fn main() {
@@ -35,6 +37,14 @@ async fn main() {
     let context = context.unwrap();
     let context = Arc::new(Mutex::new(context));
     context.lock().await.init();
+
+    //
+    tracing::info!("Starting RelayServer");
+    let relay_grpc = Arc::new(Mutex::new(RelaySpvrClient::new()));
+    relay_grpc.lock().await.connect().await;
+    RelaySpvrClient::guard(relay_grpc.clone()).await;
+    
+    tracing::info!("after Starting RelayServer");
 
     let server = RelayServer::new("0.0.0.0".to_string(), 20481, context.clone());
     server.start().await;
