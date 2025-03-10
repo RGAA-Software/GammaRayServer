@@ -9,10 +9,10 @@ use tonic::codegen::tokio_stream::{Stream, StreamExt};
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use protocol::grpc_relay::grpc_relay_server::{GrpcRelay, GrpcRelayServer};
 use protocol::grpc_base::{HeartBeatReply, HeartBeatRequest};
-use protocol::grpc_relay::{EchoRequest, EchoResponse};
+use protocol::grpc_relay::{RelayStreamRequest, RelayStreamResponse};
 
 type EchoResult<T> = Result<Response<T>, Status>;
-type ResponseStream = Pin<Box<dyn Stream<Item = Result<EchoResponse, Status>> + Send>>;
+type ResponseStream = Pin<Box<dyn Stream<Item = Result<RelayStreamResponse, Status>> + Send>>;
 
 #[derive(Default)]
 pub struct SpvrGrpcRelayServer {
@@ -62,16 +62,17 @@ fn match_for_io_error(err_status: &Status) -> Option<&std::io::Error> {
 impl GrpcRelay for SpvrGrpcRelayServer {
     async fn heart_beat(&self, request: Request<HeartBeatRequest>) -> Result<Response<HeartBeatReply>, Status> {
         Ok(Response::new(HeartBeatReply {
+            server_id: request.get_ref().server_id.clone(),
             hb_index: request.into_inner().hb_index,
         }))
     }
 
-    type BidirectionalStreamingEchoStream = ResponseStream;
+    type StreamRequestStream = ResponseStream;
 
-    async fn bidirectional_streaming_echo(
+    async fn stream_request(
         &self,
-        req: Request<Streaming<EchoRequest>>,
-    ) -> EchoResult<Self::BidirectionalStreamingEchoStream> {
+        req: Request<Streaming<RelayStreamRequest>>,
+    ) -> EchoResult<Self::StreamRequestStream> {
         println!("EchoServer::bidirectional_streaming_echo");
 
         let mut in_stream = req.into_inner();
@@ -85,7 +86,10 @@ impl GrpcRelay for SpvrGrpcRelayServer {
             while let Some(result) = in_stream.next().await {
                 match result {
                     Ok(v) => tx
-                        .send(Ok(EchoResponse { message: v.message }))
+                        .send(Ok(RelayStreamResponse { 
+                            server_id: "".to_string(), 
+                            message: v.message 
+                        }))
                         .await
                         .expect("working rx"),
                     Err(err) => {
@@ -112,7 +116,7 @@ impl GrpcRelay for SpvrGrpcRelayServer {
         let out_stream = ReceiverStream::new(rx);
 
         Ok(Response::new(
-            Box::pin(out_stream) as Self::BidirectionalStreamingEchoStream
+            Box::pin(out_stream) as Self::StreamRequestStream
         ))
     }
 }

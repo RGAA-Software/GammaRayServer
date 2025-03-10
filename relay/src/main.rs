@@ -9,6 +9,8 @@ mod relay_proto_maker;
 mod relay_room_handler;
 mod relay_errors;
 mod relay_spvr_client;
+mod relay_settings;
+mod relay_statistics;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -16,7 +18,12 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use crate::relay_context::RelayContext;
 use crate::relay_server::RelayServer;
+use crate::relay_settings::RelaySettings;
 use crate::relay_spvr_client::RelaySpvrClient;
+
+lazy_static::lazy_static! {
+    pub static ref gRelaySettings: Arc<Mutex<RelaySettings>> = Arc::new(Mutex::new(RelaySettings::new()));
+}
 
 #[tokio::main]
 async fn main() {
@@ -28,6 +35,8 @@ async fn main() {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    gRelaySettings.lock().await.init().await;
 
     let context = RelayContext::new().await;
     if let Err(err) = context {
