@@ -1,6 +1,7 @@
 pub mod json_util;
 pub mod string_util;
 pub mod system_info;
+pub mod log_util;
 
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};

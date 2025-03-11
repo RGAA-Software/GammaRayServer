@@ -15,18 +15,18 @@ type EchoResult<T> = Result<Response<T>, Status>;
 type ResponseStream = Pin<Box<dyn Stream<Item = Result<RelayStreamResponse, Status>> + Send>>;
 
 #[derive(Default)]
-pub struct SpvrGrpcRelayServer {
+pub struct RelayGrpcServer {
 }
 
-impl SpvrGrpcRelayServer {
+impl RelayGrpcServer {
     pub fn new() -> Self {
-        SpvrGrpcRelayServer {
+        RelayGrpcServer {
         }
     }
 
     pub async fn start(&self) {
         let addr = "0.0.0.0:50051".parse().unwrap();
-        let server = SpvrGrpcRelayServer::default();
+        let server = RelayGrpcServer::default();
         tracing::info!("GreeterServer listening on {}", addr);
         let r = Server::builder()
             .add_service(GrpcRelayServer::new(server))
@@ -59,7 +59,7 @@ fn match_for_io_error(err_status: &Status) -> Option<&std::io::Error> {
 }
 
 #[tonic::async_trait]
-impl GrpcRelay for SpvrGrpcRelayServer {
+impl GrpcRelay for RelayGrpcServer {
     async fn heart_beat(&self, request: Request<HeartBeatRequest>) -> Result<Response<HeartBeatReply>, Status> {
         Ok(Response::new(HeartBeatReply {
             server_id: request.get_ref().server_id.clone(),
@@ -86,9 +86,9 @@ impl GrpcRelay for SpvrGrpcRelayServer {
             while let Some(result) = in_stream.next().await {
                 match result {
                     Ok(v) => tx
-                        .send(Ok(RelayStreamResponse { 
-                            server_id: "".to_string(), 
-                            message: v.message 
+                        .send(Ok(RelayStreamResponse {
+                            server_id: "".to_string(),
+                            message: v.message
                         }))
                         .await
                         .expect("working rx"),
@@ -114,6 +114,7 @@ impl GrpcRelay for SpvrGrpcRelayServer {
 
         // echo just write the same data that was received
         let out_stream = ReceiverStream::new(rx);
+
 
         Ok(Response::new(
             Box::pin(out_stream) as Self::StreamRequestStream

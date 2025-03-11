@@ -15,14 +15,13 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::util::SubscriberInitExt;
-use base::RespMessage;
+use base::{log_util, RespMessage};
 use crate::pr_context::PrContext;
 use crate::pr_server::PrServer;
 
 #[tokio::main]
 async fn main() {
-    // initialize tracing
-    tracing_subscriber::fmt::init();
+    let _guard = log_util::init_log("logs/profile/".to_string(), "log_profile".to_string());
 
     let context = Arc::new(tokio::sync::Mutex::new(PrContext::new()));
     context.lock().await.init().await;
