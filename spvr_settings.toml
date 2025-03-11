@@ -1,0 +1,15 @@
+# id
+server_id = "xx"
+
+# name
+server_name = "spvr_01"
+
+# gRpc relay servers
+[[relay_servers]]
+ip = "127.0.0.1"
+port = 50051
+
+# gRpc profile server
+[[profile_servers]]
+ip = "127.0.0.1"
+port = 50052

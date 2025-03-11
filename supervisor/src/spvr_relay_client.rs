@@ -10,11 +10,13 @@ use tonic::client::Grpc;
 use tonic::codegen::tokio_stream::StreamExt;
 use tonic::transport::{Channel, Endpoint};
 use tonic::{Request, Response, Status, Streaming};
-use crate::{gSpvrRelayClient, gSpvrSettings};
+use crate::{gSpvrRelayClients, gSpvrSettings};
+use crate::spvr_settings::RelayServerConfig;
 
 pub struct SpvrRelayClient {
     pub client: Arc<Mutex<Option<GrpcRelayClient<Channel>>>>,
     pub hb_index: i64,
+    pub config: RelayServerConfig,
 }
 
 async fn echo_requests_iter() -> impl Stream<Item = RelayStreamRequest> {
@@ -30,11 +32,14 @@ impl SpvrRelayClient {
         Self {
             client: Arc::new(Mutex::new(None)),
             hb_index: 0,
+            config: RelayServerConfig::default(),
         }
     }
 
-    pub async fn connect(&mut self) -> bool {
-        let addr = "http://127.0.0.1:50051";
+    pub async fn connect(&mut self, config: RelayServerConfig) -> bool {
+        self.config = config.clone();
+        let addr = format!("http://{}:{}", config.ip, config.port);
+        tracing::info!("connecting to {}", addr);
         let conn = GrpcRelayClient::connect(addr).await;
         if let Err(e) = conn {
             tracing::error!("connect grpc remote error: {}", e);
@@ -63,19 +68,22 @@ impl SpvrRelayClient {
         false
     }
 
-    pub async fn guard(client: Arc<Mutex<SpvrRelayClient>>) {
+    pub async fn guard(relay_client: Arc<Mutex<SpvrRelayClient>>) {
         //self.scheduler = JobScheduler::new().await.unwrap();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(5));
             loop {
-                let client = client.clone();
                 interval.tick().await;
-                if client.lock().await.heartbeat().await {
+                tracing::info!("will check heartbeat...");
+                let relay_client = relay_client.clone();
+                // 如果这里是&，则下面relay_client又会引用自己，导致死锁
+                let config = relay_client.lock().await.config.clone();
+                if relay_client.lock().await.heartbeat().await {
                     tracing::info!("connection is ok: {:?}", Instant::now());
                     continue;
                 } else {
                     tracing::error!("connection is closed, will retry.");
-                    client.lock().await.connect().await;
+                    relay_client.lock().await.connect(config).await;
                 }
             }
         });
