@@ -1007,6 +1007,7 @@ dependencies = [
  "tokio",
  "tokio-cron-scheduler",
  "tokio-stream",
+ "toml",
  "tonic",
  "tower 0.5.2",
  "tower-http",

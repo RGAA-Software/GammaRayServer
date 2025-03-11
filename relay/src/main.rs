@@ -33,7 +33,7 @@ lazy_static::lazy_static! {
 async fn main() {
     let _guard = log_util::init_log("logs/relay/".to_string(), "log_relay".to_string());
 
-    gRelaySettings.lock().await.init().await;
+    gRelaySettings.lock().await.load().await;
 
     let context = RelayContext::new().await;
     if let Err(err) = context {
@@ -55,6 +55,8 @@ async fn main() {
         });
     });
 
-    let server = RelayServer::new("0.0.0.0".to_string(), 20481, context.clone());
+    let server = RelayServer::new("0.0.0.0".to_string(),
+                                  gRelaySettings.lock().await.server_port,
+                                  context.clone());
     server.start().await;
 }

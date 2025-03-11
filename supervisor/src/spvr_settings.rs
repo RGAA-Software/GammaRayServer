@@ -1,31 +1,10 @@
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct RelayServerConfig {
-    pub ip: String,
-    pub port: u16,
-}
-
-impl Default for RelayServerConfig {
-    fn default() -> Self {
-        RelayServerConfig {
-            ip: "".to_string(),
-            port: 0,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ProfileServerConfig {
-    pub ip: String,
-    pub port: u16,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct SpvrSettings {
     pub server_id: String,
-    pub relay_servers: Vec<RelayServerConfig>,
-    pub profile_servers: Vec<ProfileServerConfig>,
+    pub server_name: String,
+    pub server_port: u16,
 }
 
 impl SpvrSettings {
@@ -43,8 +22,8 @@ impl SpvrSettings {
 
     fn copy_from(&mut self, source: &SpvrSettings) {
         self.server_id = source.server_id.clone();
-        self.relay_servers = source.relay_servers.clone();
-        self.profile_servers = source.profile_servers.clone();
+        self.server_name = source.server_name.clone();
+        self.server_port = source.server_port;
     }
 }
 
@@ -52,8 +31,8 @@ impl Default for SpvrSettings {
     fn default() -> Self {
         SpvrSettings {
             server_id: "".to_string(),
-            relay_servers: vec![],
-            profile_servers: vec![],
+            server_name: "".to_string(),
+            server_port: 0,
         }
     }
 }

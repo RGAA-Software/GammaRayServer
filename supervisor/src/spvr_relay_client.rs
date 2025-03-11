@@ -11,12 +11,12 @@ use tonic::codegen::tokio_stream::StreamExt;
 use tonic::transport::{Channel, Endpoint};
 use tonic::{Request, Response, Status, Streaming};
 use crate::{gSpvrRelayClients, gSpvrSettings};
-use crate::spvr_settings::RelayServerConfig;
 
 pub struct SpvrRelayClient {
     pub client: Arc<Mutex<Option<GrpcRelayClient<Channel>>>>,
     pub hb_index: i64,
-    pub config: RelayServerConfig,
+    pub grpc_ip: String,
+    pub grpc_port: u16,
 }
 
 async fn echo_requests_iter() -> impl Stream<Item = RelayStreamRequest> {
@@ -32,13 +32,15 @@ impl SpvrRelayClient {
         Self {
             client: Arc::new(Mutex::new(None)),
             hb_index: 0,
-            config: RelayServerConfig::default(),
+            grpc_ip: "".to_string(),
+            grpc_port: 0,
         }
     }
 
-    pub async fn connect(&mut self, config: RelayServerConfig) -> bool {
-        self.config = config.clone();
-        let addr = format!("http://{}:{}", config.ip, config.port);
+    pub async fn connect(&mut self, grpc_ip: String, grpc_port: u16) -> bool {
+        self.grpc_ip = grpc_ip.clone();
+        self.grpc_port = grpc_port;
+        let addr = format!("http://{}:{}", grpc_ip, grpc_port);
         tracing::info!("connecting to {}", addr);
         let conn = GrpcRelayClient::connect(addr).await;
         if let Err(e) = conn {
@@ -77,13 +79,14 @@ impl SpvrRelayClient {
                 tracing::info!("will check heartbeat...");
                 let relay_client = relay_client.clone();
                 // 如果这里是&，则下面relay_client又会引用自己，导致死锁
-                let config = relay_client.lock().await.config.clone();
+                let grpc_ip = relay_client.lock().await.grpc_ip.clone();
+                let grpc_port = relay_client.lock().await.grpc_port;
                 if relay_client.lock().await.heartbeat().await {
                     tracing::info!("connection is ok: {:?}", Instant::now());
                     continue;
                 } else {
                     tracing::error!("connection is closed, will retry.");
-                    relay_client.lock().await.connect(config).await;
+                    relay_client.lock().await.connect(grpc_ip, grpc_port).await;
                 }
             }
         });

@@ -79,9 +79,9 @@ impl RelayRoomManager {
         Some(relay_room)
     }
 
-    pub async fn find_room(&self, room_id: &String) -> Option<RelayRoom> {
+    pub async fn find_room(&self, room_id: String) -> Option<RelayRoom> {
         let result = self.redis_conn.lock().await
-            .hgetall::<&String, Vec<(String, String)>>(room_id).await;
+            .hgetall::<String, Vec<(String, String)>>(room_id.clone()).await;
         if let Err(err) = result {
             tracing::error!("Could not find room: {} in redis", room_id);
             return None
@@ -214,12 +214,12 @@ impl RelayRoomManager {
         let sub = m.relay.unwrap();
         let from_device_id = m.from_device_id;
         for room_id in sub.room_ids.iter() {
-            let room = self.find_room(room_id).await;
+            let room = self.find_room(room_id.clone()).await;
             if let Some(room) = room {
                 let from_device_id = from_device_id.clone();
                 let om = om.clone();
                 tokio::spawn(async move {
-                    room.notify_except(&from_device_id, om).await;
+                    room.notify_except(from_device_id, om).await;
                 });
             }
         }
@@ -283,7 +283,7 @@ impl RelayRoomManager {
         if sub.under_control {
             tracing::info!("{} is under control", sub.remote_device_id);
             let room_id = sub.room_id;
-            let room = self.find_room(&room_id).await;
+            let room = self.find_room(room_id.clone()).await;
             if let None = room {
                 tracing::error!("can't find room: {}", room_id);
                 return;

@@ -23,7 +23,7 @@ pub async fn hr_query_room(
     
     let room_id = room_id.unwrap();
     let room = context.lock().await.
-        room_mgr.lock().await.find_room(&room_id).await;
+        room_mgr.lock().await.find_room(room_id).await;
     if let None = room {
         return Json(base::resp_empty_str_map(get_err_pair(ERR_ROOM_NOT_FOUND)));
     }
@@ -55,7 +55,7 @@ pub async fn hr_query_rooms(
     let mut r = Vec::new();
     for room_id in room_ids {
         let room = context.lock().await
-            .room_mgr.lock().await.find_room(&room_id).await;
+            .room_mgr.lock().await.find_room(room_id).await;
         if let Some(room) = room {
             r.push(room.as_str_map());
         }

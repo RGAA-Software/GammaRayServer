@@ -44,9 +44,9 @@ impl RelayRoom {
         hm
     }
     
-    pub async fn notify_except(&self, except_id: &String, m: Bytes) {
+    pub async fn notify_except(&self, except_id: String, m: Bytes) {
         for (device_id, device) in self.devices.iter() {
-            if *device_id == *except_id {
+            if *device_id == except_id {
                 continue;
             }
 
