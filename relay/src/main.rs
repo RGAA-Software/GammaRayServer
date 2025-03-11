@@ -11,6 +11,7 @@ mod relay_errors;
 mod relay_settings;
 mod relay_statistics;
 mod relay_grpc_server;
+mod relay_spvr_client;
 
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -56,7 +57,7 @@ async fn main() {
     });
 
     let server = RelayServer::new("0.0.0.0".to_string(),
-                                  gRelaySettings.lock().await.server_port,
+                                  gRelaySettings.lock().await.server_working_port,
                                   context.clone());
     server.start().await;
 }

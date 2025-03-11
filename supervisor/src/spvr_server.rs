@@ -111,16 +111,18 @@ impl SpvrServer {
                              -> ControlFlow<(), ()> {
         match msg {
             Message::Text(data) => {
-                // parse json
-                let value: serde_json::error::Result<serde_json::Value> = serde_json::from_str(data.as_str());
-                if let Err(e) = value {
-                    tracing::error!("parse json error: {e}, json: {}", data.to_string());
-                    return ControlFlow::Break(());
+                return if spvr_conn.lock().await.process_text_message(data).await {
+                    ControlFlow::Continue(())
+                } else {
+                    ControlFlow::Break(())
                 }
             }
             Message::Binary(data) => {
-
-                return ControlFlow::Continue(());
+                return if spvr_conn.lock().await.process_binary_message(data).await {
+                    ControlFlow::Continue(())
+                } else {
+                    ControlFlow::Break(())
+                }
             }
             Message::Close(c) => {
                 if let Some(cf) = c {
@@ -134,15 +136,8 @@ impl SpvrServer {
                 return ControlFlow::Break(());
             }
 
-            Message::Pong(v) => {
-
-            }
-            // You should never need to manually handle Message::Ping, as axum's websocket library
-            // will do so for you automagically by replying with Pong and copying the v according to
-            // spec. But if you need the contents of the pings you can see them here.
-            Message::Ping(v) => {
-                println!(">>> {who} sent ping with {v:?}");
-            }
+            Message::Pong(v) => {}
+            Message::Ping(v) => {}
         }
         ControlFlow::Continue(())
     }

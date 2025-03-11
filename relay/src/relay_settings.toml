@@ -4,5 +4,14 @@ server_id = ""
 # name
 server_name = ""
 
-# port
-server_port = 30600
+# w3c ip
+server_w3c_ip = ""
+
+# local ip
+server_local_ip = ""
+
+# grpc server port
+server_grpc_port = 40600
+
+# working server port
+server_working_port = 30600

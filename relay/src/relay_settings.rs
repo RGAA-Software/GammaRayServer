@@ -8,7 +8,10 @@ use base::system_info;
 pub struct RelaySettings {
     pub server_id: String,
     pub server_name: String,
-    pub server_port: u16,
+    pub server_w3c_ip: String,
+    pub server_local_ip: String,
+    pub server_grpc_port: u16,
+    pub server_working_port: u16,
 }
 
 impl RelaySettings {
@@ -33,7 +36,10 @@ impl RelaySettings {
     fn copy_from(&mut self, source: &RelaySettings) {
         self.server_id = source.server_id.clone();
         self.server_name = source.server_name.clone();
-        self.server_port = source.server_port;
+        self.server_w3c_ip = source.server_w3c_ip.clone();
+        self.server_local_ip = source.server_local_ip.clone();
+        self.server_grpc_port = source.server_grpc_port;
+        self.server_working_port = source.server_working_port;
     }
 }
 
@@ -42,7 +48,10 @@ impl Default for RelaySettings {
         RelaySettings {
             server_id: "".to_string(),
             server_name: "".to_string(),
-            server_port: 0,
+            server_w3c_ip: "".to_string(),
+            server_local_ip: "".to_string(),
+            server_grpc_port: 0,
+            server_working_port: 0,
         }
     }
 }

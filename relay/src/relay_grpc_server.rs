@@ -10,6 +10,7 @@ use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use protocol::grpc_relay::grpc_relay_server::{GrpcRelay, GrpcRelayServer};
 use protocol::grpc_base::{HeartBeatReply, HeartBeatRequest};
 use protocol::grpc_relay::{RelayStreamRequest, RelayStreamResponse};
+use crate::gRelaySettings;
 
 type EchoResult<T> = Result<Response<T>, Status>;
 type ResponseStream = Pin<Box<dyn Stream<Item = Result<RelayStreamResponse, Status>> + Send>>;
@@ -25,7 +26,8 @@ impl RelayGrpcServer {
     }
 
     pub async fn start(&self) {
-        let addr = "0.0.0.0:50051".parse().unwrap();
+        let server_grpc_port = gRelaySettings.lock().await.server_grpc_port;
+        let addr = format!("0.0.0.0:{}", server_grpc_port).parse().unwrap();
         let server = RelayGrpcServer::default();
         tracing::info!("GreeterServer listening on {}", addr);
         let r = Server::builder()
