@@ -37,10 +37,7 @@ impl SpvrGrpcClientManager for SpvrGrpcRelayClientManager {
     }
 
     async fn on_close(&self, server_id: String) {
-        let conns = self.relay_clients.clone();
-        tokio::spawn(async move {
-            conns.lock().await.remove(&server_id);
-            tracing::info!("remove RelayServer: {}", server_id);
-        });
+        self.relay_clients.lock().await.remove(&server_id);
     }
+    
 }

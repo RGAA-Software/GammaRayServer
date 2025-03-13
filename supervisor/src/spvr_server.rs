@@ -154,10 +154,7 @@ impl SpvrServer {
             }
             Message::Close(c) => {
                 if let Some(cf) = c {
-                    println!(
-                        ">>> {} sent close with code {} and reason `{}`",
-                        who, cf.code, cf.reason
-                    );
+                    println!(">>> {} sent close with code {} and reason `{}`", who, cf.code, cf.reason);
                 } else {
                     println!(">>> {who} somehow sent close message without CloseFrame");
                 }
