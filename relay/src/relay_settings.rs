@@ -20,8 +20,8 @@ impl RelaySettings {
     }
 
     pub async fn load(&mut self) {
-        let toml_content = std::fs::read_to_string("spvr_settings.toml")
-            .expect("can't read spvr_settings.toml");
+        let toml_content = std::fs::read_to_string("relay_settings.toml")
+            .expect("can't read relay_settings.toml");
         let settings: RelaySettings = toml::from_str(&toml_content).expect("parse toml failed");
         self.copy_from(&settings);
         

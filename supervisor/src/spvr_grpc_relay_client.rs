@@ -10,9 +10,9 @@ use tonic::client::Grpc;
 use tonic::codegen::tokio_stream::StreamExt;
 use tonic::transport::{Channel, Endpoint};
 use tonic::{Request, Response, Status, Streaming};
-use crate::{gSpvrRelayClients, gSpvrSettings};
+use crate::{gSpvrSettings};
 
-pub struct SpvrRelayClient {
+pub struct SpvrGrpcRelayClient {
     pub client: Arc<Mutex<Option<GrpcRelayClient<Channel>>>>,
     pub hb_index: i64,
     pub grpc_ip: String,
@@ -27,7 +27,7 @@ async fn echo_requests_iter() -> impl Stream<Item = RelayStreamRequest> {
     })
 }
 
-impl SpvrRelayClient {
+impl SpvrGrpcRelayClient {
     pub fn new() -> Self {
         Self {
             client: Arc::new(Mutex::new(None)),
@@ -70,7 +70,7 @@ impl SpvrRelayClient {
         false
     }
 
-    pub async fn guard(relay_client: Arc<Mutex<SpvrRelayClient>>) {
+    pub async fn guard(relay_client: Arc<Mutex<SpvrGrpcRelayClient>>) {
         //self.scheduler = JobScheduler::new().await.unwrap();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(5));

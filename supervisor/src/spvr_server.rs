@@ -14,8 +14,11 @@ use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use base::RespMessage;
 use protocol::relay::{RelayMessage, RelayMessageType};
+use protocol::spvr_inner::SpvrServerType;
+use crate::{gSpvrConnMgr, gSpvrGrpcProfileClientMgr, gSpvrGrpcRelayClientMgr};
 use crate::spvr_conn::SpvrConn;
 use crate::spvr_context::SpvrContext;
+use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;
 
 pub struct SpvrServer {
     pub host: String,
@@ -38,6 +41,7 @@ impl SpvrServer {
         let app = Router::new()
             .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
             .route("/", get(SpvrServer::root))
+            .route("/inner", any(SpvrServer::ws_handler))
             .with_state(self.context.clone());
         
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap();
@@ -77,10 +81,23 @@ impl SpvrServer {
         let (sender, mut receiver) = socket.split();
 
         let mut recv_task = tokio::spawn(async move {
-            //let device_id = params.get("device_id").unwrap_or(&"".to_string()).clone();
+            let server_id = params.get("server_id").unwrap_or(&"".to_string()).clone();
+            if server_id.is_empty() {
+                tracing::error!("spvr, server_id is empty!");
+                return;
+            }
+
+            let server_type = params.get("server_type").unwrap_or(&"".to_string()).clone();
+            let server_type = server_type.parse::<i32>().unwrap_or(-1);
+            if server_type == -1 {
+                tracing::error!("spvr, server_type is invalid!");
+                return;
+            }
+
             let sender = Arc::new(Mutex::new(sender));
             let spvr_conn = SpvrConn::new(context.clone(), sender).await;
             let spvr_conn = Arc::new(Mutex::new(spvr_conn));
+            gSpvrConnMgr.lock().await.add_conn(server_id.clone(), spvr_conn.clone()).await;
 
             while let Some(Ok(msg)) = receiver.next().await {
                 // print message and break if instructed to do so
@@ -89,6 +106,17 @@ impl SpvrServer {
                 }
             }
 
+            // remove
+            gSpvrConnMgr.lock().await.remove_conn(server_id.clone()).await;
+            
+            // 
+            if server_type == SpvrServerType::KSpvrRelayServer {
+                gSpvrGrpcRelayClientMgr.lock().await.on_close(server_id).await;
+            }
+            else if server_type == SpvrServerType::KSpvrProfileServer {
+                gSpvrGrpcProfileClientMgr.lock().await.on_close(server_id).await;
+            }
+            
         });
 
         tokio::select! {

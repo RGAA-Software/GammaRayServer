@@ -98,6 +98,7 @@ impl RelayServer {
 
         let mut recv_task = tokio::spawn(async move {
             let device_id = params.get("device_id").unwrap_or(&"".to_string()).clone();
+            tracing::info!("connected device id: {}", device_id);
             let sender = Arc::new(Mutex::new(sender));
             let relay_conn = RelayConn::new(context.clone(), sender, device_id.clone()).await;
 

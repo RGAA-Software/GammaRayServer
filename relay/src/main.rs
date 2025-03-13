@@ -24,10 +24,12 @@ use crate::relay_context::RelayContext;
 use crate::relay_grpc_server::RelayGrpcServer;
 use crate::relay_server::RelayServer;
 use crate::relay_settings::RelaySettings;
+use crate::relay_spvr_client::RelaySpvrClient;
 
 lazy_static::lazy_static! {
     pub static ref gRelaySettings: Arc<Mutex<RelaySettings>> = Arc::new(Mutex::new(RelaySettings::new()));
     pub static ref gRelayGrpcServer: Arc<Mutex<RelayGrpcServer>> = Arc::new(Mutex::new(RelayGrpcServer::new()));
+    pub static ref gRelaySpvrClient: Arc<Mutex<RelaySpvrClient>> = Arc::new(Mutex::new(RelaySpvrClient::new()));
 }
 
 #[tokio::main]
@@ -46,15 +48,24 @@ async fn main() {
     context.lock().await.init();
 
     // grpc relay server
-    std::thread::spawn(|| {
-        let rt = Runtime::new().expect("Failed to create Tokio runtime");
-        rt.block_on(async move {
-            tracing::info!("will start grpc relay server.");
-            let grpc_relay = RelayGrpcServer::new();
-            grpc_relay.start().await;
-            tracing::info!("after grpc relay server.");
-        });
+    // std::thread::spawn(|| {
+    //     let rt = Runtime::new().expect("Failed to create Tokio runtime");
+    //     rt.block_on(async move {
+    //         tracing::info!("will start grpc relay server.");
+    //         let grpc_relay = RelayGrpcServer::new();
+    //         grpc_relay.start().await;
+    //         tracing::info!("after grpc relay server.");
+    //     });
+    // });
+
+    tokio::spawn(async move {
+        tracing::info!("will start grpc relay server.");
+        let grpc_relay = RelayGrpcServer::new();
+        grpc_relay.start().await;
+        tracing::info!("after grpc relay server.");
     });
+
+    gRelaySpvrClient.lock().await.connect("ws://127.0.0.1:30500/inner?server_id=12345&server_type=0".to_string()).await;
 
     let server = RelayServer::new("0.0.0.0".to_string(),
                                   gRelaySettings.lock().await.server_working_port,

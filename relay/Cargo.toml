@@ -37,6 +37,7 @@ lazy_static = "1.5.0"
 sysinfo = "0.33.1"
 h2 = "0.4.8"
 toml = "0.8.20"
+tokio-tungstenite = "0.26.0"
 
 [build-dependencies]
 prost-build = "0.13.5"
