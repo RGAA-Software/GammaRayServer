@@ -65,7 +65,10 @@ async fn main() {
         tracing::info!("after grpc relay server.");
     });
 
-    gRelaySpvrClient.lock().await.connect("ws://127.0.0.1:30500/inner?server_id=12345&server_type=0".to_string()).await;
+    gRelaySpvrClient.lock().await.connect(format!("ws://{}:{}/inner?server_id={}&server_type=0",
+        gRelaySettings.lock().await.spvr_server_ip, gRelaySettings.lock().await.spvr_server_port,
+        gRelaySettings.lock().await.server_id)
+    ).await;
 
     let server = RelayServer::new("0.0.0.0".to_string(),
                                   gRelaySettings.lock().await.server_working_port,

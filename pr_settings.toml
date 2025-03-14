@@ -2,7 +2,7 @@
 server_id = ""
 
 # name
-server_name = "Srv.Relay.01"
+server_name = "Srv.Profile.01"
 
 # w3c ip
 server_w3c_ip = "127.0.0.1"
@@ -11,10 +11,10 @@ server_w3c_ip = "127.0.0.1"
 server_local_ip = "127.0.0.1"
 
 # grpc server port
-server_grpc_port = 40600
+server_grpc_port = 40700
 
 # working server port
-server_working_port = 30600
+server_working_port = 30700
 
 # spvr server ip
 spvr_server_ip = "127.0.0.1"
