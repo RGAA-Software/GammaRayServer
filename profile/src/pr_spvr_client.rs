@@ -11,14 +11,14 @@ use tokio::time::sleep;
 use tokio_tungstenite::tungstenite::Message as TungsteniteMessage;
 use protocol::spvr_inner::{SpvrInnerHeartBeat, SpvrInnerHello, SpvrInnerMessage, SpvrInnerMessageType, SpvrServerType};
 
-// [this]Relay client ---> Supervisor ws server
-pub struct RelaySpvrClient {
+// [this]Pr client ---> Supervisor ws server
+pub struct PrSpvrClient {
     sender: Arc<Mutex<Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, TungsteniteMessage>>>>
 }
 
-impl RelaySpvrClient {
-    pub fn new() -> RelaySpvrClient {
-        RelaySpvrClient {
+impl PrSpvrClient {
+    pub fn new() -> PrSpvrClient {
+        PrSpvrClient {
             sender: Arc::new(Default::default()),
         }
     }
@@ -31,8 +31,8 @@ impl RelaySpvrClient {
                     Ok((mut stream, response)) => {
                         tracing::info!("Connected to {}", address);
                         let mut m = SpvrInnerMessage::default();
-                        m.server_id = "12345".to_string();
-                        m.server_type = SpvrServerType::KSpvrRelayServer as i32;
+                        m.server_id = "pr_01".to_string();
+                        m.server_type = SpvrServerType::KSpvrProfileServer as i32;
                         m.msg_type = i32::from(SpvrInnerMessageType::KSpvrInnerHello);
                         m.hello = Some(SpvrInnerHello {
                             server_name: "xxxx".to_string(),
@@ -62,8 +62,8 @@ impl RelaySpvrClient {
                         loop {
                             if let Some(sender) = &mut *sender.lock().await {
                                 let mut m = SpvrInnerMessage::default();
-                                m.server_id = "12345".to_string();
-                                m.server_type = SpvrServerType::KSpvrRelayServer as i32;
+                                m.server_id = "pr_01".to_string();
+                                m.server_type = SpvrServerType::KSpvrProfileServer as i32;
                                 m.msg_type = i32::from(SpvrInnerMessageType::KSpvrInnerHeartBeat);
                                 m.heartbeat = Some(SpvrInnerHeartBeat {
                                     hb_index,
@@ -73,7 +73,7 @@ impl RelaySpvrClient {
                                     tracing::error!("Sending heartbeat failed, Break the heartbeat loop: {}", hb_index);
                                     break;
                                 }
-                                 hb_index += 1;
+                                hb_index += 1;
                             }
                             else {
                                 tracing::error!("Break the heartbeat: {}", hb_index);

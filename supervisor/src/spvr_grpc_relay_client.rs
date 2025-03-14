@@ -3,6 +3,7 @@ use protocol::grpc_relay::grpc_relay_client::GrpcRelayClient;
 use protocol::grpc_relay::grpc_relay_server::GrpcRelay;
 use protocol::grpc_relay::{RelayStreamRequest};
 use std::sync::Arc;
+use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration, Instant};
 use tokio_stream::Stream;
@@ -12,7 +13,9 @@ use tonic::transport::{Channel, Endpoint};
 use tonic::{Request, Response, Status, Streaming};
 use crate::{gSpvrSettings};
 
+#[derive(Serialize)]
 pub struct SpvrGrpcRelayClient {
+    #[serde(skip_serializing)]
     pub client: Arc<Mutex<Option<GrpcRelayClient<Channel>>>>,
     pub hb_index: i64,
     pub grpc_ip: String,
@@ -61,7 +64,6 @@ impl SpvrGrpcRelayClient {
             })).await;
 
             if let Ok(r) = r {
-                tracing::info!("heart beat : {}", self.hb_index);
                 self.hb_index += 1;
                 return true;
             }
@@ -76,16 +78,15 @@ impl SpvrGrpcRelayClient {
             let mut interval = tokio::time::interval(Duration::from_secs(5));
             loop {
                 interval.tick().await;
-                tracing::info!("will check heartbeat...");
                 let relay_client = relay_client.clone();
                 // 如果这里是&，则下面relay_client又会引用自己，导致死锁
                 let grpc_ip = relay_client.lock().await.grpc_ip.clone();
                 let grpc_port = relay_client.lock().await.grpc_port;
                 if relay_client.lock().await.heartbeat().await {
-                    tracing::info!("connection is ok: {:?}", Instant::now());
+                    tracing::info!("guard is ok: {:?}", Instant::now());
                     continue;
                 } else {
-                    tracing::error!("connection is closed, will retry.");
+                    tracing::error!("guard is closed, will retry.");
                     relay_client.lock().await.connect(grpc_ip, grpc_port).await;
                 }
             }

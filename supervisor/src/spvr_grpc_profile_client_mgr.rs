@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use serde::Serialize;
 use tokio::sync::Mutex;
 use protocol::spvr_inner::{SpvrInnerHeartBeat, SpvrInnerHello};
 use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;

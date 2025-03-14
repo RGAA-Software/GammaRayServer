@@ -8,6 +8,9 @@ mod spvr_grpc_profile_client;
 mod spvr_grpc_relay_client_mgr;
 mod spvr_grpc_profile_client_mgr;
 mod spvr_grpc_client_mgr_trait;
+mod spvr_handler_server;
+mod spvr_defs;
+mod spvr_handler_device;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -40,16 +43,6 @@ async fn main() {
 
     // context
     let context = Arc::new(Mutex::new(spvr_context::SpvrContext::new()));
-
-    // relay grpc client
-    //let relay_servers_config = gSpvrSettings.lock().await.relay_servers.clone();
-    //for config in relay_servers_config {
-        // let grpc_relay_client = Arc::new(Mutex::new(SpvrRelayClient::new()));
-        // grpc_relay_client.lock().await.connect(config.clone()).await;
-        // SpvrRelayClient::guard(grpc_relay_client.clone()).await;
-        // gSpvrRelayClients.lock().await.insert(config.ip.clone(), grpc_relay_client);
-        // tracing::info!("after Starting RelayServer");
-    //}
     
     // server
     let server = SpvrServer::new("0.0.0.0".to_string(),

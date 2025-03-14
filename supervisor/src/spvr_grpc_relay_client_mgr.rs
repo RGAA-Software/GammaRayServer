@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use serde::Serialize;
 use tokio::sync::Mutex;
 use protocol::spvr_inner::{SpvrInnerHeartBeat, SpvrInnerHello, SpvrServerType};
 use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;
@@ -16,6 +17,15 @@ impl SpvrGrpcRelayClientManager {
         Self {
             relay_clients: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub async fn get_connected_clients(&self) -> Vec<Arc<Mutex<SpvrGrpcRelayClient>>> {
+        let mut clients: Vec<Arc<Mutex<SpvrGrpcRelayClient>>> = Vec::new();
+        for c in self.relay_clients.lock().await.values() {
+            let c = c.clone();
+            clients.push(c);
+        }
+        clients
     }
 }
 
@@ -39,5 +49,4 @@ impl SpvrGrpcClientManager for SpvrGrpcRelayClientManager {
     async fn on_close(&self, server_id: String) {
         self.relay_clients.lock().await.remove(&server_id);
     }
-    
 }

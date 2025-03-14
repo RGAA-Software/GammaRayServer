@@ -19,6 +19,8 @@ use crate::{gSpvrConnMgr, gSpvrGrpcProfileClientMgr, gSpvrGrpcRelayClientMgr};
 use crate::spvr_conn::SpvrConn;
 use crate::spvr_context::SpvrContext;
 use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;
+use crate::spvr_handler_device::hd_get_device_info;
+use crate::spvr_handler_server::hs_get_online_servers;
 
 pub struct SpvrServer {
     pub host: String,
@@ -42,6 +44,10 @@ impl SpvrServer {
             .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
             .route("/", get(SpvrServer::root))
             .route("/inner", any(SpvrServer::ws_handler))
+            // server info
+            .route("/get/online/servers", get(hs_get_online_servers))
+            // device info
+            .route("/get/device/info", get(hd_get_device_info))
             .with_state(self.context.clone());
         
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap();
@@ -95,7 +101,10 @@ impl SpvrServer {
             }
 
             let sender = Arc::new(Mutex::new(sender));
-            let spvr_conn = SpvrConn::new(context.clone(), sender).await;
+            let spvr_conn = SpvrConn::new(context.clone(), 
+                                          sender, 
+                                          server_id.clone(),
+                                          SpvrServerType::try_from(server_type).unwrap()).await;
             let spvr_conn = Arc::new(Mutex::new(spvr_conn));
             gSpvrConnMgr.lock().await.add_conn(server_id.clone(), spvr_conn.clone()).await;
 
@@ -120,8 +129,8 @@ impl SpvrServer {
         });
 
         tokio::select! {
-            rv_a = (&mut recv_task) => {
-                match rv_a {
+            spvr_rv = (&mut recv_task) => {
+                match spvr_rv {
                     Ok(_) => {},
                     Err(e) => {
                         tracing::error!("receive task error: {e:?}")

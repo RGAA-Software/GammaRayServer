@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub type StringMap = HashMap<String, String>;
+pub type StrMap = HashMap<&'static str, String>;
 pub type RespStringMap = RespMessage<StringMap>;
 pub type RespVecStringMap = RespMessage<Vec<StringMap>>;
 

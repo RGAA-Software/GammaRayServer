@@ -9,11 +9,11 @@ use tonic::codegen::tokio_stream::{Stream, StreamExt};
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use protocol::grpc_relay::grpc_relay_server::{GrpcRelay, GrpcRelayServer};
 use protocol::grpc_base::{HeartBeatReply, HeartBeatRequest};
-use protocol::grpc_relay::{RelayStreamRequest, RelayStreamResponse};
+use protocol::grpc_relay::{RelayQueryDeviceReply, RelayQueryDeviceRequest, RelayStreamReply, RelayStreamRequest};
 use crate::gRelaySettings;
 
 type EchoResult<T> = Result<Response<T>, Status>;
-type ResponseStream = Pin<Box<dyn Stream<Item = Result<RelayStreamResponse, Status>> + Send>>;
+type ResponseStream = Pin<Box<dyn Stream<Item = Result<RelayStreamReply, Status>> + Send>>;
 
 #[derive(Default)]
 pub struct RelayGrpcServer {
@@ -88,7 +88,7 @@ impl GrpcRelay for RelayGrpcServer {
             while let Some(result) = in_stream.next().await {
                 match result {
                     Ok(v) => tx
-                        .send(Ok(RelayStreamResponse {
+                        .send(Ok(RelayStreamReply {
                             server_id: "".to_string(),
                             message: v.message
                         }))
@@ -121,5 +121,16 @@ impl GrpcRelay for RelayGrpcServer {
         Ok(Response::new(
             Box::pin(out_stream) as Self::StreamRequestStream
         ))
+    }
+
+    async fn query_device(&self, request: Request<RelayQueryDeviceRequest>) -> Result<Response<RelayQueryDeviceReply>, Status> {
+        Ok(Response::new(RelayQueryDeviceReply {
+            has_device: false,
+            device_id: "1".to_string(),
+            in_w3c_ip: "2".to_string(),
+            in_local_ip: "3".to_string(),
+            grpc_port: "4".to_string(),
+            working_port: "5".to_string(),
+        }))
     }
 }
