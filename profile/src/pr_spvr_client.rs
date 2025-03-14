@@ -10,6 +10,7 @@ use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tokio_tungstenite::tungstenite::Message as TungsteniteMessage;
 use protocol::spvr_inner::{SpvrInnerHeartBeat, SpvrInnerHello, SpvrInnerMessage, SpvrInnerMessageType, SpvrServerType};
+use crate::gPrSettings;
 
 // [this]Pr client ---> Supervisor ws server
 pub struct PrSpvrClient {
@@ -30,16 +31,17 @@ impl PrSpvrClient {
                 let ws_stream = match connect_async(address.clone()).await {
                     Ok((mut stream, response)) => {
                         tracing::info!("Connected to {}", address);
+                        let settings = &mut *gPrSettings.lock().await;
                         let mut m = SpvrInnerMessage::default();
-                        m.server_id = "pr_01".to_string();
+                        m.server_id = settings.server_id.clone();
                         m.server_type = SpvrServerType::KSpvrProfileServer as i32;
                         m.msg_type = i32::from(SpvrInnerMessageType::KSpvrInnerHello);
                         m.hello = Some(SpvrInnerHello {
-                            server_name: "xxxx".to_string(),
-                            server_w3c_ip: "127.0.0.1".to_string(),
-                            server_local_ip: "127.0.0.1".to_string(),
-                            server_grpc_port: 40600,
-                            server_working_port: 30600,
+                            server_name: settings.server_name.clone(),
+                            server_w3c_ip: settings.server_w3c_ip.clone(),
+                            server_local_ip: settings.server_local_ip.clone(),
+                            server_grpc_port: settings.server_grpc_port as u32,
+                            server_working_port: settings.server_working_port as u32,
                         });
                         let _ = stream.send(TungsteniteMessage::Binary(Bytes::from(m.encode_to_vec()))).await;
 
@@ -61,8 +63,9 @@ impl PrSpvrClient {
                         let mut hb_index = 0;
                         loop {
                             if let Some(sender) = &mut *sender.lock().await {
+                                let settings = &mut *gPrSettings.lock().await;
                                 let mut m = SpvrInnerMessage::default();
-                                m.server_id = "pr_01".to_string();
+                                m.server_id = settings.server_id.clone();
                                 m.server_type = SpvrServerType::KSpvrProfileServer as i32;
                                 m.msg_type = i32::from(SpvrInnerMessageType::KSpvrInnerHeartBeat);
                                 m.heartbeat = Some(SpvrInnerHeartBeat {
@@ -87,10 +90,10 @@ impl PrSpvrClient {
                     while let Some(msg) = receiver.next().await {
                         match msg {
                             Ok(TungsteniteMessage::Binary(data)) => {
-                                println!("Received data: {}", data.len());
+                                
                             }
                             Ok(TungsteniteMessage::Text(text)) => {
-                                println!("Received message: {}", text);
+                                
                             }
                             Ok(TungsteniteMessage::Close(_)) => {
                                 println!("Connection closed by server");

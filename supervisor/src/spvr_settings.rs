@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct SpvrSettings {
+    #[serde(skip_deserializing, skip_serializing)]
     pub server_id: String,
     pub server_name: String,
     pub server_port: u16,

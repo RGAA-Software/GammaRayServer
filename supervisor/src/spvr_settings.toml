@@ -1,8 +1,5 @@
-# id
-server_id = "xx"
-
 # name
-server_name = "spvr_01"
+server_name = "Srv.Supervisor.01"
 
 # port
 server_port = 30500

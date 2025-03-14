@@ -6,6 +6,7 @@ use base::system_info;
 
 #[derive(Debug, Deserialize)]
 pub struct RelaySettings {
+    #[serde(skip_deserializing, skip_serializing)]
     pub server_id: String,
     pub server_name: String,
     pub server_w3c_ip: String,
@@ -26,11 +27,9 @@ impl RelaySettings {
             .expect("can't read relay_settings.toml");
         let settings: RelaySettings = toml::from_str(&toml_content).expect("parse toml failed");
         self.copy_from(&settings);
-        
-        if self.server_id.is_empty() {
-            let system_info = system_info::SystemInfo::new();
-            self.server_id = system_info.server_id;
-        }
+
+        let system_info = system_info::SystemInfo::new();
+        self.server_id = format!("{}-{}", settings.server_name, system_info.server_id);
         
         println!("{:#?}", self);
     }

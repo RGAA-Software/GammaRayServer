@@ -48,12 +48,12 @@ async fn main() {
     });
     
     // spvr client
-    gPrSpvrClient.lock().await.connect(
-        format!("ws://{}:{}/inner?server_id={}&server_type=1",
-            gPrSettings.lock().await.spvr_server_ip, gPrSettings.lock().await.spvr_server_port,
-            gPrSettings.lock().await.server_id
-        )
-    ).await;
+    let spvr_srv_ip = gPrSettings.lock().await.spvr_server_ip.clone();
+    let spvr_srv_port = gPrSettings.lock().await.spvr_server_port;
+    let srv_id = gPrSettings.lock().await.server_id.clone();
+    let address = format!("ws://{}:{}/inner?server_id={}&server_type=1", spvr_srv_ip, spvr_srv_port, srv_id);
+    tracing::info!("connecting to: {}", address);
+    gPrSpvrClient.lock().await.connect(address).await;
     
     // server
     let server = PrServer::new("0.0.0.0".to_string(), 
