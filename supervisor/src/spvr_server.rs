@@ -20,7 +20,7 @@ use crate::spvr_conn::SpvrConn;
 use crate::spvr_context::SpvrContext;
 use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;
 use crate::spvr_handler_device::hd_get_device_info;
-use crate::spvr_handler_server::hs_get_online_servers;
+use crate::spvr_handler_server::{hs_get_online_profile_servers, hs_get_online_relay_servers, hs_get_online_servers};
 
 pub struct SpvrServer {
     pub host: String,
@@ -46,6 +46,8 @@ impl SpvrServer {
             .route("/inner", any(SpvrServer::ws_handler))
             // server info
             .route("/get/online/servers", get(hs_get_online_servers))
+            .route("/get/online/profile/servers", get(hs_get_online_profile_servers))
+            .route("/get/online/relay/servers", get(hs_get_online_relay_servers))
             // device info
             .route("/get/device/info", get(hd_get_device_info))
             .with_state(self.context.clone());

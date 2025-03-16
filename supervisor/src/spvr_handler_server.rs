@@ -33,3 +33,21 @@ pub async fn hs_get_online_servers(
 
     Json(base::ok_resp(result))
 }
+
+pub async fn hs_get_online_profile_servers(
+    State(context): State<Arc<Mutex<SpvrContext>>>,
+    query: Query<HashMap<String, String>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> Json<RespMessage<Vec<StrMap>>> {
+    let mut result: Vec<StrMap> = Default::default();
+    Json(base::ok_resp(result))
+}
+
+pub async fn hs_get_online_relay_servers(
+    State(context): State<Arc<Mutex<SpvrContext>>>,
+    query: Query<HashMap<String, String>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> Json<RespMessage<Vec<StrMap>>> {
+    let mut result: Vec<StrMap> = Default::default();
+    Json(base::ok_resp(result))
+}
