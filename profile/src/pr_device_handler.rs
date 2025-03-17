@@ -26,7 +26,8 @@ impl PrDeviceHandler {
             let id_generator = context.lock().await.id_generator.clone();
             let new_device_info = id_generator.lock().await.generate_new_id(&hw_info, &platform);
 
-            let match_device = db.lock().await.find_device_by_id_and_seed(&new_device_info.device_id, &new_device_info.seed).await;
+            let match_device = db.lock().await
+                .find_device_by_id_and_seed(new_device_info.device_id.clone(), new_device_info.seed.clone()).await;
             if let Some(mut match_device) = match_device {
                 // todo: generate new random pwd, update random pwd
                 println!("Match exists device: {}", new_device_info.device_id);
@@ -35,7 +36,7 @@ impl PrDeviceHandler {
                 let update_info = HashMap::<String, String>::from([
                     (String::from("random_pwd"), base::md5_hex(&new_random_pwd.clone()))
                 ]);
-                let update_result = db.lock().await.update_device(&match_device.device_id, update_info).await;
+                let update_result = db.lock().await.update_device(match_device.device_id.clone(), update_info).await;
                 if update_result {
                     match_device.random_pwd = new_random_pwd;
                     break Some(match_device);
@@ -45,7 +46,7 @@ impl PrDeviceHandler {
                 }
             }
             else {
-                let exist_device = db.lock().await.find_device_by_id(&new_device_info.device_id).await;
+                let exist_device = db.lock().await.find_device_by_id(new_device_info.device_id.clone()).await;
                 if let Some(exist_device) = exist_device {
                     // need to regenerate
                     hw_info = "".to_string();
@@ -109,14 +110,15 @@ impl PrDeviceHandler {
         }
         let db = context.lock().await.database.clone();
         // exists device
-        let device = db.lock().await.find_device_by_id(&device_id).await;
+        let device = db.lock().await.find_device_by_id(device_id.clone()).await;
         if let None = device {
             return Json(resp_empty_str(get_err_pair(ERR_DEVICE_NOT_FOUND)));
         }
         let device = device.unwrap();
         let target_used_time = device.used_time + period;
 
-        let r = db.lock().await.update_device_field(&device_id, &"used_time".to_string(), target_used_time).await;
+        let r = db.lock().await
+            .update_device_field(device_id.clone(), "used_time".to_string(), target_used_time).await;
         if r {
             Json(ok_resp(device_id))
         }
@@ -125,13 +127,27 @@ impl PrDeviceHandler {
         }
     }
 
-    pub async fn verify_device_info(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>,
+    pub async fn verify_device_info(State(context): State<Arc<Mutex<PrContext>>>,
                                    query: Query<HashMap<String, String>>)
                                    -> Json<RespMessage<String>> {
         let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
         let random_pwd_md5 = query.get("random_pwd_md5").unwrap_or(&"".to_string()).clone();
+        let safety_pwd_md5 = query.get("safety_pwd_md5").unwrap_or(&"".to_string()).clone();
+        if device_id.is_empty() || random_pwd_md5.is_empty() {
+            return Json(resp_empty_str(get_err_pair(ERR_PARAM_INVALID)));
+        }
         let db = context.lock().await.database.clone();
-        
-        Json(ok_resp("".to_string()))
+        let device = db.lock().await.find_device_by_id(device_id.clone()).await;
+        if let None = device {
+            return Json(resp_empty_str(get_err_pair(ERR_DEVICE_NOT_FOUND)));
+        }
+        let device = device.unwrap();
+        let mut ok = device.device_id == device_id;
+        if !safety_pwd_md5.is_empty() {
+            let same_safety_pwd = safety_pwd_md5 == device.safety_pwd;
+            ok = ok && same_safety_pwd;
+        }
+
+        Json(ok_resp(ok.to_string()))
     }
 }

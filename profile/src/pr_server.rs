@@ -31,7 +31,7 @@ impl PrServer {
             // `GET /` goes to `root`
             .route("/ping", get(PrServer::ping))
             .route("/create/new/device", post(PrDeviceHandler::create_new_device))
-            .route("/verify/device/info", post(PrDeviceHandler::verify_device_info))
+            .route("/verify/device/info", get(PrDeviceHandler::verify_device_info))
             .route("/query/devices", get(PrDeviceHandler::query_devices))
             .route("/append/used/time", post(PrDeviceHandler::append_used_time))
             .with_state(self.context.clone());

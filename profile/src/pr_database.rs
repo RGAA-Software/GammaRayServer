@@ -77,7 +77,7 @@ impl PrDatabase {
         true
     }
     
-    pub async fn find_device_by_id_and_seed(&self, device_id: &String, seed: &String) -> Option<PrDevice> {
+    pub async fn find_device_by_id_and_seed(&self, device_id: String, seed: String) -> Option<PrDevice> {
         let c_device = self.c_device.clone().unwrap().clone();
         let filter = doc! { 
             "device_id": device_id,
@@ -87,7 +87,7 @@ impl PrDatabase {
         r.unwrap_or(None)
     }
     
-    pub async fn find_device_by_id(&self, device_id: &String) -> Option<PrDevice> {
+    pub async fn find_device_by_id(&self, device_id: String) -> Option<PrDevice> {
         let c_device = self.c_device.clone().unwrap().clone();
         let filter = doc! { 
             "device_id": device_id,
@@ -96,7 +96,7 @@ impl PrDatabase {
         r.unwrap_or(None)
     }
 
-    pub async fn update_device(&mut self, device_id: &String, update_info: HashMap<String, String>) -> bool {
+    pub async fn update_device(&mut self, device_id: String, update_info: HashMap<String, String>) -> bool {
         let c_device = self.c_device.clone().unwrap().clone();
         let filter_doc = doc! {
             "device_id": device_id,
@@ -118,7 +118,7 @@ impl PrDatabase {
         }
     }
 
-    pub async fn update_device_field<T>(&mut self, device_id: &String, key: &String, val: T) -> bool where T: Into<Bson> {
+    pub async fn update_device_field<T>(&mut self, device_id: String, key: String, val: T) -> bool where T: Into<Bson> {
         let c_device = self.c_device.clone().unwrap().clone();
         let filter_doc = doc! {
             "device_id": device_id,
