@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::Json;
+use tokio::sync::Mutex;
 use tokio::task::id;
 use base::{resp_empty_str, ok_resp};
 use crate::pr_context::PrContext;
@@ -15,7 +16,9 @@ pub struct PrDeviceHandler {
 
 impl PrDeviceHandler {
 
-    pub async fn create_new_device(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>, query: Query<HashMap<String, String>>) -> Json<RespMessage<PrDevice>> {
+    pub async fn create_new_device(State(context): State<Arc<Mutex<PrContext>>>,
+                                   query: Query<HashMap<String, String>>)
+        -> Json<RespMessage<PrDevice>> {
         let mut hw_info = query.get("hw_info").unwrap_or(&"".to_string()).clone();
         let platform = query.get("platform").unwrap_or(&"".to_string()).clone();
         let db = context.lock().await.database.clone();
@@ -87,13 +90,17 @@ impl PrDeviceHandler {
         
     }
 
-    pub async fn query_devices(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>, query: Query<HashMap<String, String>>) -> Json<RespMessage<Vec<PrDevice>>> {
+    pub async fn query_devices(State(context): State<Arc<Mutex<PrContext>>>,
+                               query: Query<HashMap<String, String>>)
+        -> Json<RespMessage<Vec<PrDevice>>> {
         let db = context.lock().await.database.clone();
         let devices = db.lock().await.query_devices(1, 10).await;
         Json(ok_resp(devices))
     }
 
-    pub async fn append_used_time(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>, query: Query<HashMap<String, String>>) -> Json<RespMessage<String>>  {
+    pub async fn append_used_time(State(context): State<Arc<Mutex<PrContext>>>,
+                                  query: Query<HashMap<String, String>>)
+        -> Json<RespMessage<String>> {
         let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
         let period = query.get("period").unwrap_or(&"".to_string()).clone();
         let period = period.parse::<i64>().unwrap_or(0);
@@ -118,4 +125,13 @@ impl PrDeviceHandler {
         }
     }
 
+    pub async fn verify_device_info(State(context): State<Arc<tokio::sync::Mutex<PrContext>>>,
+                                   query: Query<HashMap<String, String>>)
+                                   -> Json<RespMessage<String>> {
+        let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
+        let random_pwd_md5 = query.get("random_pwd_md5").unwrap_or(&"".to_string()).clone();
+        let db = context.lock().await.database.clone();
+        
+        Json(ok_resp("".to_string()))
+    }
 }

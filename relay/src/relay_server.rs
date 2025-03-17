@@ -42,7 +42,7 @@ impl RelayServer {
 
         let app = Router::new()
             .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
-            .route("/", get(RelayServer::root))
+            .route("/ping", get(RelayServer::ping))
             .route("/relay", any(RelayServer::ws_handler))
             .route("/query/room", get(relay_room_handler::hr_query_room))
             .route("/query/rooms", get(relay_room_handler::hr_query_rooms))
@@ -58,11 +58,11 @@ impl RelayServer {
         axum::serve(listener,  app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
     }
 
-    pub async fn root(State(ctx): State<Arc<Mutex<RelayContext>>>) -> Json<RespMessage<String>> {
+    pub async fn ping(State(ctx): State<Arc<Mutex<RelayContext>>>) -> Json<RespMessage<String>> {
         Json(RespMessage::<String> {
             code: 200,
             message: "ok".to_string(),
-            data: "Working".to_string(),
+            data: "Pong".to_string(),
         })
     }
 

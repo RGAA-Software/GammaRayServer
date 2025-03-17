@@ -42,7 +42,7 @@ impl SpvrServer {
 
         let app = Router::new()
             .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
-            .route("/", get(SpvrServer::root))
+            .route("/ping", get(SpvrServer::ping))
             .route("/inner", any(SpvrServer::ws_handler))
             // server info
             .route("/get/online/servers", get(hs_get_online_servers))
@@ -55,11 +55,14 @@ impl SpvrServer {
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap();
         axum::serve(listener,  app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
     }
-    
-    pub async fn root() -> Json<RespMessage<String>> {
-        Json(base::ok_resp_str("Working".to_string()))
-    }
 
+    pub async fn ping(State(ctx): State<Arc<Mutex<SpvrContext>>>) -> Json<RespMessage<String>> {
+        Json(RespMessage::<String> {
+            code: 200,
+            message: "ok".to_string(),
+            data: "Pong".to_string(),
+        })
+    }
     async fn ws_handler(
         State(context): State<Arc<Mutex<SpvrContext>>>,
         query: Query<HashMap<String, String>>,
