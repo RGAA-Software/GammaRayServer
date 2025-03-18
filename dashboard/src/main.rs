@@ -30,7 +30,11 @@ async fn main() {
 
     // settings
     gDashSettings.lock().await.load();
-
+    
+    // database
+    let db_path = gDashSettings.lock().await.db_path.clone();
+    gDashDatabase.lock().await.init(db_path).await;
+    
     // context
     let context = Arc::new(Mutex::new(DashContext::new()));
 

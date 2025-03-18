@@ -27,14 +27,15 @@ impl DashDatabase {
         }
     }
 
-    pub async fn init(&mut self) -> bool {
-        let uri = "mongodb://localhost:27017/";
+    pub async fn init(&mut self, db_path: String) -> bool {
+        let uri = db_path;
         // Create a new client and connect to the server
         let client = Client::with_uri_str(uri).await;
         if let Err(e) = client {
-            println!("error connecting to MongoDB: {}", e);
+            tracing::error!("error connecting to MongoDB: {}", e);
             return false;
         }
+        
         let client = client.unwrap();
         // Get a handle on the movies collection
         let database = client.database("db_dashboard");
@@ -61,13 +62,11 @@ impl DashDatabase {
             .await
             .unwrap();
 
-        println!("query device, skip:{} - limit:{}", skip, limit);
-
         let mut groups: Vec<DashGroup> = Vec::new();
         while let Some(group) = cursor.next().await {
             if let Err(e) = group {
-                println!("error connecting to MongoDB: {}", e);
-            }else {
+                println!("query group error: {}", e);
+            } else {
                 println!("device: {:?}", group);
                 groups.push(group.unwrap());
             }

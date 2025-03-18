@@ -3,6 +3,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct DashSettings {
     pub server_port: u16,
+    pub db_path: String,
 }
 
 impl DashSettings {
@@ -15,7 +16,7 @@ impl DashSettings {
             .expect("can't read dash_settings.toml");
         let settings: DashSettings = toml::from_str(&toml_content).expect("parse toml failed");
         self.copy_from(&settings);
-        println!("{:#?}", self);
+        tracing::info!("{:#?}", self);
     }
 
     fn copy_from(&mut self, source: &DashSettings) {
@@ -27,6 +28,7 @@ impl Default for DashSettings {
     fn default() -> Self {
         DashSettings {
             server_port: 0,
+            db_path: "".to_string(),
         }
     }
 }

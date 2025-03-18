@@ -1,2 +1,5 @@
-#
+# listening port
 server_port = 30400
+
+# database path
+db_path = "mongodb://localhost:27017/"
