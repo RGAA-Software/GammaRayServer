@@ -13,7 +13,6 @@ use futures_util::StreamExt;
 use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use base::RespMessage;
-use protocol::relay::{RelayMessage, RelayMessageType};
 use protocol::spvr_inner::SpvrServerType;
 use crate::{gSpvrConnMgr, gSpvrGrpcProfileClientMgr, gSpvrGrpcRelayClientMgr};
 use crate::spvr_conn::SpvrConn;

@@ -12,19 +12,14 @@ mod spvr_handler_server;
 mod spvr_defs;
 mod spvr_handler_device;
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::runtime::{Handle, Runtime};
-use tokio::sync::Mutex;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-use base::log_util;
 use crate::spvr_conn_mgr::SpvrConnManager;
 use crate::spvr_grpc_profile_client_mgr::SpvrGrpcProfileClientMgr;
 use crate::spvr_grpc_relay_client_mgr::SpvrGrpcRelayClientManager;
-use crate::spvr_grpc_relay_client::SpvrGrpcRelayClient;
 use crate::spvr_server::SpvrServer;
 use crate::spvr_settings::SpvrSettings;
+use base::log_util;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 lazy_static::lazy_static! {
     pub static ref gSpvrSettings: Arc<Mutex<SpvrSettings>> = Arc::new(Mutex::new(SpvrSettings::new()));

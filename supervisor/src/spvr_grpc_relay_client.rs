@@ -1,16 +1,15 @@
-use protocol::grpc_base::{HeartBeatReply, HeartBeatRequest};
-use protocol::grpc_relay::grpc_relay_client::GrpcRelayClient;
-use protocol::grpc_relay::grpc_relay_server::GrpcRelay;
-use protocol::grpc_relay::{RelayStreamRequest};
+use protocol::{
+    grpc_relay::grpc_relay_client::GrpcRelayClient,
+    grpc_base::{HeartBeatRequest},
+    grpc_relay::{RelayStreamRequest}
+};
 use std::sync::Arc;
 use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration, Instant};
 use tokio_stream::Stream;
-use tonic::client::Grpc;
 use tonic::codegen::tokio_stream::StreamExt;
-use tonic::transport::{Channel, Endpoint};
-use tonic::{Request, Response, Status, Streaming};
+use tonic::transport::{Channel};
 use crate::{gSpvrSettings};
 
 #[derive(Serialize)]

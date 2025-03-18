@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use crate::spvr_conn::SpvrConnPtr;
 use protocol::spvr_inner::SpvrServerType;
-use crate::spvr_conn::{SpvrConn, SpvrConnPtr};
+use std::collections::HashMap;
+use tokio::sync::Mutex;
 
 pub struct SpvrConnManager {
     conns: Mutex<HashMap<String, SpvrConnPtr>>,
