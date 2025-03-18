@@ -966,6 +966,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
 
 [[package]]
+name = "gr_dashboard"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.1",
+ "axum-extra",
+ "base",
+ "futures-util",
+ "h2",
+ "headers",
+ "lazy_static",
+ "mongodb",
+ "prost",
+ "prost-types",
+ "protocol",
+ "rand 0.9.0",
+ "redis",
+ "rustls 0.23.23",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "toml",
+ "tonic",
+ "tower 0.5.2",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "gr_profile_server"
 version = "1.0.0"
 dependencies = [

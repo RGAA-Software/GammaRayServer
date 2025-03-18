@@ -3,8 +3,8 @@ use std::net::SocketAddr;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
 use std::sync::Arc;
-use axum::{Json, Router};
 use axum::extract::{ConnectInfo, Query, State, WebSocketUpgrade};
+use axum::{Json, Router};
 use axum::extract::ws::{Message, WebSocket};
 use axum::response::IntoResponse;
 use axum::routing::{any, get};
@@ -14,23 +14,17 @@ use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use base::RespMessage;
 use protocol::spvr_inner::SpvrServerType;
-use crate::{gSpvrConnMgr, gSpvrGrpcProfileClientMgr, gSpvrGrpcRelayClientMgr};
-use crate::spvr_conn::SpvrConn;
-use crate::spvr_context::SpvrContext;
-use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;
-use crate::spvr_handler_device::hd_get_device_info;
-use crate::spvr_handler_server::{hs_get_online_profile_servers, hs_get_online_relay_servers, hs_get_online_servers};
+use crate::dash_context::DashContext;
+use crate::dash_conn::DashConn;
 
-pub struct SpvrServer {
-    pub host: String,
+pub struct DashServer {
     pub port: u16,
-    pub context: Arc<Mutex<SpvrContext>>,
+    pub context: Arc<Mutex<DashContext>>,
 }
 
-impl SpvrServer {
-    pub fn new(host: String, port: u16, context: Arc<Mutex<SpvrContext>>) -> Self {
-        SpvrServer {
-            host,
+impl DashServer {
+    pub fn new(port: u16, context: Arc<Mutex<DashContext>>) -> DashServer {
+        DashServer {
             port,
             context,
         }
@@ -38,33 +32,28 @@ impl SpvrServer {
 
     pub async fn start(&self) {
         let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
-
+        tracing::info!("assets dir: {}", assets_dir.to_str().unwrap());
         let app = Router::new()
             .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
-            .route("/ping", get(SpvrServer::ping))
-            .route("/inner", any(SpvrServer::ws_handler))
-            // server info
-            .route("/get/online/servers", get(hs_get_online_servers))
-            .route("/get/online/profile/servers", get(hs_get_online_profile_servers))
-            .route("/get/online/relay/servers", get(hs_get_online_relay_servers))
-            // device info
-            .route("/get/device/info", get(hd_get_device_info))
+            .route("/ping", get(DashServer::ping))
+            .route("/inner", any(DashServer::ws_handler))
+
             .with_state(self.context.clone());
-        
-        let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap();
+
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.port)).await.unwrap();
         axum::serve(listener,  app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
     }
 
-    pub async fn ping(State(ctx): State<Arc<Mutex<SpvrContext>>>) -> Json<RespMessage<String>> {
+    pub async fn ping(State(ctx): State<Arc<Mutex<DashContext>>>) -> Json<RespMessage<String>> {
         Json(RespMessage::<String> {
             code: 200,
             message: "ok".to_string(),
             data: "Pong".to_string(),
         })
     }
-    
+
     async fn ws_handler(
-        State(context): State<Arc<Mutex<SpvrContext>>>,
+        State(context): State<Arc<Mutex<DashContext>>>,
         query: Query<HashMap<String, String>>,
         ws: WebSocketUpgrade,
         user_agent: Option<TypedHeader<headers::UserAgent>>,
@@ -81,11 +70,11 @@ impl SpvrServer {
         }
         let params = query.0.clone();
         ws.on_upgrade(move |socket| {
-            SpvrServer::handle_socket(context.clone(), params, socket, addr)
+            DashServer::handle_socket(context.clone(), params, socket, addr)
         })
     }
 
-    async fn handle_socket(context: Arc<Mutex<SpvrContext>>,
+    async fn handle_socket(context: Arc<Mutex<DashContext>>,
                            params: HashMap<String, String>,
                            socket: WebSocket,
                            who: SocketAddr) {
@@ -93,11 +82,6 @@ impl SpvrServer {
 
         let mut recv_task = tokio::spawn(async move {
             let server_id = params.get("server_id").unwrap_or(&"".to_string()).clone();
-            if server_id.is_empty() {
-                tracing::error!("spvr, server_id is empty!");
-                return;
-            }
-
             let server_type = params.get("server_type").unwrap_or(&"".to_string()).clone();
             let server_type = server_type.parse::<i32>().unwrap_or(-1);
             if server_type == -1 {
@@ -106,31 +90,16 @@ impl SpvrServer {
             }
 
             let sender = Arc::new(Mutex::new(sender));
-            let spvr_conn = SpvrConn::new(context.clone(), 
-                                          sender, 
-                                          server_id.clone(),
-                                          SpvrServerType::try_from(server_type).unwrap()).await;
+            let spvr_conn = DashConn::new(context.clone(), sender).await;
             let spvr_conn = Arc::new(Mutex::new(spvr_conn));
-            gSpvrConnMgr.lock().await.add_conn(server_id.clone(), spvr_conn.clone()).await;
 
             while let Some(Ok(msg)) = receiver.next().await {
                 // print message and break if instructed to do so
-                if SpvrServer::process_message(context.clone(), spvr_conn.clone(), msg, who).await.is_break() {
+                if DashServer::process_message(context.clone(), spvr_conn.clone(), msg, who).await.is_break() {
                     break;
                 }
             }
 
-            // remove
-            gSpvrConnMgr.lock().await.remove_conn(server_id.clone()).await;
-            
-            // 
-            if server_type == SpvrServerType::KSpvrRelayServer {
-                gSpvrGrpcRelayClientMgr.lock().await.on_close(server_id).await;
-            }
-            else if server_type == SpvrServerType::KSpvrProfileServer {
-                gSpvrGrpcProfileClientMgr.lock().await.on_close(server_id).await;
-            }
-            
         });
 
         tokio::select! {
@@ -146,8 +115,8 @@ impl SpvrServer {
         }
     }
 
-    async fn process_message(context: Arc<Mutex<SpvrContext>>,
-                             spvr_conn: Arc<Mutex<SpvrConn>>,
+    async fn process_message(context: Arc<Mutex<DashContext>>,
+                             spvr_conn: Arc<Mutex<DashConn>>,
                              msg: Message,
                              who: SocketAddr)
                              -> ControlFlow<(), ()> {
@@ -180,5 +149,4 @@ impl SpvrServer {
         }
         ControlFlow::Continue(())
     }
-
 }

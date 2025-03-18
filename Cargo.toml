@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "base",
+    "dashboard",
     "profile",
     "protocol",
     "relay",
