@@ -21,6 +21,7 @@ use tokio::sync::Mutex;
 use tracing_subscriber::util::SubscriberInitExt;
 use base::{log_util, RespMessage};
 use crate::pr_context::PrContext;
+use crate::pr_database::PrDatabase;
 use crate::pr_grpc_server::PrGrpcServer;
 use crate::pr_server::PrServer;
 use crate::pr_settings::PrSettings;
@@ -29,6 +30,7 @@ use crate::pr_spvr_client::PrSpvrClient;
 lazy_static::lazy_static! {
     pub static ref gPrSpvrClient: Arc<Mutex<PrSpvrClient>> = Arc::new(Mutex::new(PrSpvrClient::new()));
     pub static ref gPrSettings: Arc<Mutex<PrSettings>> = Arc::new(Mutex::new(PrSettings::new()));
+    pub static ref gDatabase: Arc<Mutex<PrDatabase>> = PrDatabase::new();
 }
 
 #[tokio::main]
@@ -37,7 +39,13 @@ async fn main() {
     
     // settings
     gPrSettings.lock().await.load().await;
-    
+
+    // database
+    if !gDatabase.lock().await.init().await {
+        tracing::error!("connect to database failed! ");
+        return;
+    }
+
     // context
     let context = Arc::new(tokio::sync::Mutex::new(PrContext::new()));
     context.lock().await.init().await;

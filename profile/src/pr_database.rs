@@ -8,6 +8,7 @@ use mongodb::{
 };
 use mongodb::bson::Bson;
 use mongodb::options::FindOptions;
+use crate::gPrSettings;
 use crate::pr_device::PrDevice;
 
 pub struct PrDatabase {
@@ -24,21 +25,23 @@ impl PrDatabase {
     }
 
     pub async fn init(&mut self) -> bool {
-        // Replace the placeholder with your Atlas connection string
-        let uri = "mongodb://localhost:27017/";
+        let uri = gPrSettings.lock().await.mongodb_url.clone();
         // Create a new client and connect to the server
+        tracing::info!("mongo uri: {}, will connect it!", uri);
         let client = Client::with_uri_str(uri).await;
         if let Err(e) = client {
-            println!("error connecting to MongoDB: {}", e);
+            tracing::error!("error connecting to MongoDB: {}", e);
             return false;
         }
+        tracing::info!("connect to mongodb success!");
+
         let client = client.unwrap();
         // Get a handle on the movies collection
         let database = client.database("db_profile");
         let c_device: Collection<PrDevice> = database.collection("c_device");
         self.c_device = Some(Arc::new(tokio::sync::Mutex::new(c_device)));
         
-        return true;
+        true
     }
     
     pub async fn query_devices(&mut self, page: i32, page_size: i32) -> Vec<PrDevice> {
@@ -71,7 +74,7 @@ impl PrDatabase {
         let c_device = self.c_device.clone().unwrap().clone();
         let r = c_device.lock().await.insert_one(device).await;
         if let Err(e) = r {
-            println!("error inserting device: {}", e);
+            tracing::error!("error inserting device: {}", e);
             return false;
         }
         true

@@ -15,6 +15,7 @@ pub struct RelaySettings {
     pub server_working_port: u16,
     pub spvr_server_ip: String,
     pub spvr_server_port: u16,
+    pub redis_url: String,
 }
 
 impl RelaySettings {
@@ -43,6 +44,7 @@ impl RelaySettings {
         self.server_working_port = source.server_working_port;
         self.spvr_server_ip = source.spvr_server_ip.clone();
         self.spvr_server_port = source.spvr_server_port;
+        self.redis_url = source.redis_url.clone();
     }
 }
 
@@ -57,6 +59,7 @@ impl Default for RelaySettings {
             server_working_port: 0,
             spvr_server_ip: "".to_string(),
             spvr_server_port: 0,
+            redis_url: "".to_string(),
         }
     }
 }

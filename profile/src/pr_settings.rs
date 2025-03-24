@@ -15,6 +15,7 @@ pub struct PrSettings {
     pub server_working_port: u16,
     pub spvr_server_ip: String,
     pub spvr_server_port: u16,
+    pub mongodb_url: String,
 }
 
 impl PrSettings {
@@ -43,6 +44,7 @@ impl PrSettings {
         self.server_working_port = source.server_working_port;
         self.spvr_server_ip = source.spvr_server_ip.clone();
         self.spvr_server_port = source.spvr_server_port;
+        self.mongodb_url = source.mongodb_url.clone();
     }
 }
 
@@ -57,6 +59,7 @@ impl Default for PrSettings {
             server_working_port: 0,
             spvr_server_ip: "".to_string(),
             spvr_server_port: 0,
+            mongodb_url: "".to_string(),
         }
     }
 }

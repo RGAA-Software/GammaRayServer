@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use redis::aio::MultiplexedConnection;
 use tokio::sync::Mutex;
+use crate::gRelaySettings;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_room::RelayRoom;
 use crate::relay_room_mgr::RelayRoomManager;
@@ -13,9 +14,11 @@ pub struct RelayContext {
 
 impl RelayContext {
     pub async fn new() -> Result<RelayContext, String> {
-        let redis_client = redis::Client::open("redis://127.0.0.1:6379/").unwrap();
+        let redis_url = gRelaySettings.lock().await.redis_url.clone();
+        let redis_client = redis::Client::open(redis_url).unwrap();
         let redis_conn = redis_client.get_multiplexed_async_connection().await;
         if let Err(err) = redis_conn {
+            tracing::error!("connect to redis failed: {}", err.to_string());
             return Err(err.to_string());
         }
         let redis_conn = redis_conn.unwrap();

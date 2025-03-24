@@ -34,11 +34,11 @@ impl PrIdGenerator {
                 || index == 26 || index == 28 || index == 30 {
                 let v = (*value) % 10;
                 device_id += &v.to_string();
-                println!("index: {}-> val: {}", index, v);
+                //println!("index: {}-> val: {}", index, v);
             }
         }
 
-        println!("target_id: {}", device_id);
+        tracing::info!("generate target_id: {}", device_id);
 
         GenDeviceInfo {
             device_id,

@@ -18,3 +18,6 @@ spvr_server_ip = "127.0.0.1"
 
 # spvr server port
 spvr_server_port = 30500
+
+# mongodb url
+mongodb_url = "mongodb://localhost:27017/"
