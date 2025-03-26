@@ -20,6 +20,7 @@ use tracing_log::LogTracer;
 use tracing_subscriber::{fmt, filter::LevelFilter};
 use tracing_subscriber::prelude::*;
 use base::log_util;
+use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_context::RelayContext;
 use crate::relay_grpc_server::RelayGrpcServer;
 use crate::relay_server::RelayServer;
@@ -30,6 +31,7 @@ lazy_static::lazy_static! {
     pub static ref gRelaySettings: Arc<Mutex<RelaySettings>> = Arc::new(Mutex::new(RelaySettings::new()));
     pub static ref gRelayGrpcServer: Arc<Mutex<RelayGrpcServer>> = Arc::new(Mutex::new(RelayGrpcServer::new()));
     pub static ref gRelaySpvrClient: Arc<Mutex<RelaySpvrClient>> = Arc::new(Mutex::new(RelaySpvrClient::new()));
+    pub static ref gRelayConnMgr: Arc<Mutex<RelayConnManager>> = Arc::new(Mutex::new(RelayConnManager::new()));
 }
 
 #[tokio::main]

@@ -7,6 +7,7 @@ use prost::bytes::BytesMut;
 use prost::Message as ProstMessage;
 use redis::AsyncCommands;
 use tokio::sync::Mutex;
+use protocol::relay;
 use protocol::relay::RelayMessage;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_context::RelayContext;
@@ -21,12 +22,16 @@ pub struct RelayConn {
     pub device_id: String,
     pub last_update_timestamp: i64,
     pub heartbeat_index: i64,
+    // client's www ip address
+    pub client_w3c_host: String,
+    pub client_net_info: Vec<relay::RelayDeviceNetInfo>,
 }
 
 impl RelayConn {
     pub async fn new(context: Arc<Mutex<RelayContext>>,
                sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
-               device_id: String) -> Arc<Mutex<RelayConn>> {
+               device_id: String,
+               client_w3c_host: String) -> Arc<Mutex<RelayConn>> {
         let conn_mgr = context.lock().await.conn_mgr.clone();
         let room_mgr = context.lock().await.room_mgr.clone();
         Arc::new(Mutex::new(RelayConn {
@@ -37,6 +42,8 @@ impl RelayConn {
             device_id,
             last_update_timestamp: base::get_current_timestamp(),
             heartbeat_index: 0,
+            client_w3c_host,
+            client_net_info: vec![],
         }))
     }
 
@@ -64,15 +71,19 @@ impl RelayConn {
 
     pub async fn on_hello(&mut self, m: RelayMessage) {
         self.last_update_timestamp = base::get_current_timestamp();
-        //tracing::info!("received hello message: {}", m.from_device_id);
+        self.client_net_info = m.hello.unwrap().net_info;
+        tracing::info!("received hello message: {}, net info: {:#?}", m.from_device_id, self.client_net_info);
     }
 
     pub async fn on_heartbeat(&mut self, m: RelayMessage) {
         self.last_update_timestamp = base::get_current_timestamp();
-        self.heartbeat_index = m.heartbeat.unwrap().index;
-        self.room_mgr.lock().await
-            .on_heartbeat_for_my_room(m.from_device_id).await;
-        //tracing::info!("received heartbeat message: {}", m.heartbeat.unwrap().index);
+        if let Some(heartbeat) = m.heartbeat {
+            self.heartbeat_index = heartbeat.index;
+            self.client_net_info = heartbeat.net_info;
+            self.room_mgr.lock().await
+                .on_heartbeat_for_my_room(m.from_device_id).await;
+            //tracing::info!("received heartbeat message: {}, net info: {:#?}", self.heartbeat_index, self.client_net_info);
+        }
     }
 
     pub async fn on_error(&self, m: RelayMessage) {

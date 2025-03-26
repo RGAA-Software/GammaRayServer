@@ -13,12 +13,24 @@ pub struct RelayDeviceInfo {
     #[prost(string, tag = "2")]
     pub device_id: ::prost::alloc::string::String,
 }
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct RelayHello {}
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RelayDeviceNetInfo {
+    #[prost(string, tag = "1")]
+    pub ip: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub mac: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RelayHello {
+    #[prost(message, repeated, tag = "2")]
+    pub net_info: ::prost::alloc::vec::Vec<RelayDeviceNetInfo>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RelayHeartBeat {
     #[prost(int64, tag = "1")]
     pub index: i64,
+    #[prost(message, repeated, tag = "2")]
+    pub net_info: ::prost::alloc::vec::Vec<RelayDeviceNetInfo>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RelayTargetMessage {

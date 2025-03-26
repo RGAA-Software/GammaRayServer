@@ -30,7 +30,8 @@ impl RelayRoomManager {
 
     pub async fn create_room(&self, device_id: String, remote_device_id: String) -> Option<RelayRoom> {
         let conn_device =
-            if let Some(device) = self.conn_mgr.lock().await.get_connection(&device_id).await {
+            if let Some(device)
+                = self.conn_mgr.lock().await.get_connection(device_id.clone()).await {
             device
         } else {
             tracing::error!("Could not find device {}", device_id);
@@ -38,7 +39,8 @@ impl RelayRoomManager {
         };
 
         let conn_remote_device =
-            if let Some(remote_device) = self.conn_mgr.lock().await.get_connection(&remote_device_id).await {
+            if let Some(remote_device)
+                = self.conn_mgr.lock().await.get_connection(remote_device_id.clone()).await {
             remote_device
         } else {
             tracing::error!("Could not find remote device {}", remote_device_id);
@@ -107,11 +109,11 @@ impl RelayRoomManager {
             }
         }
 
-        if let Some(device) =  self.conn_mgr.lock().await.get_connection(&relay_room.device_id).await {
+        if let Some(device) =  self.conn_mgr.lock().await.get_connection(relay_room.device_id.clone()).await {
             relay_room.devices.insert(relay_room.device_id.clone(), device.clone());
             //tracing::info!("found device {:?}", relay_room.device_id);
         }
-        if let Some(remote_device) = self.conn_mgr.lock().await.get_connection(&relay_room.remote_device_id).await {
+        if let Some(remote_device) = self.conn_mgr.lock().await.get_connection(relay_room.remote_device_id.clone()).await {
             relay_room.devices.insert(relay_room.remote_device_id.clone(), remote_device.clone());
             //tracing::info!("found remote device {:?}", relay_room.remote_device_id);
         }
@@ -180,7 +182,7 @@ impl RelayRoomManager {
                 });
                 let r = rl_msg.encode_to_vec();
                 if let Some(remote_device) = self.conn_mgr.lock().await
-                    .get_connection(&target_remote_device_id).await {
+                    .get_connection(target_remote_device_id).await {
                     tokio::spawn(async move {
                         _ = remote_device.lock().await.send_binary_message(Bytes::from(r)); 
                     });
@@ -246,7 +248,7 @@ impl RelayRoomManager {
         }
 
         if let Some(device) = self.conn_mgr.lock().await
-            .get_connection(&sub.device_id).await {
+            .get_connection(sub.device_id.clone()).await {
             _ = device.lock().await.send_binary_message(Bytes::from(resp_msg)).await;
         }
     }
@@ -255,14 +257,15 @@ impl RelayRoomManager {
         let from_device_id = m.from_device_id;
         let sub = m.request_control.unwrap();
         let remote_device_id = sub.remote_device_id;
-        let remote_conn = self.conn_mgr.lock().await.get_connection(&remote_device_id).await;
+        let remote_conn = self.conn_mgr.lock().await.get_connection(remote_device_id.clone()).await;
         if let Some(remote_conn) = remote_conn {
             remote_conn.lock().await.send_binary_message(om).await;
             tracing::info!("request control message to: {}", remote_device_id);
         }
         else {
             let r = make_error_message(RelayErrorCode::KRelayCodeRemoteClientNotFound);
-            if let Some(device) = self.conn_mgr.lock().await.get_connection(&from_device_id).await {
+            if let Some(device)
+                = self.conn_mgr.lock().await.get_connection(from_device_id).await {
                 _ = device.lock().await.send_binary_message(Bytes::from(r)).await;
             }
         }
@@ -272,7 +275,8 @@ impl RelayRoomManager {
         let sub = m.request_control_resp.unwrap();
         let req_device_id = sub.device_id.clone();
         let remote_device_id = sub.remote_device_id.clone();
-        let req_device = self.conn_mgr.lock().await.get_connection(&req_device_id).await;
+        let req_device
+            = self.conn_mgr.lock().await.get_connection(req_device_id.clone()).await;
         if let None = req_device {
             tracing::error!("can't find device: {}", req_device_id);
             return;
@@ -290,7 +294,8 @@ impl RelayRoomManager {
             }
             let room = room.unwrap();
 
-            let resp_device = self.conn_mgr.lock().await.get_connection(&sub.remote_device_id).await;
+            let resp_device =
+                self.conn_mgr.lock().await.get_connection(sub.remote_device_id.clone()).await;
             if let None = resp_device {
                 tracing::error!("can't find remote device: {}", sub.remote_device_id);
                 return;

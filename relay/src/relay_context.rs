@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use redis::aio::MultiplexedConnection;
 use tokio::sync::Mutex;
-use crate::gRelaySettings;
+use crate::{gRelayConnMgr, gRelaySettings};
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_room::RelayRoom;
 use crate::relay_room_mgr::RelayRoomManager;
@@ -24,7 +24,7 @@ impl RelayContext {
         let redis_conn = redis_conn.unwrap();
         let redis_conn = Arc::new(Mutex::new(redis_conn));
 
-        let conn_mgr = Arc::new(Mutex::new(RelayConnManager::new()));
+        let conn_mgr = gRelayConnMgr.clone();
 
         let room_mgr = RelayRoomManager::new(redis_conn.clone(), conn_mgr.clone());
         let room_mgr = Arc::new(Mutex::new(room_mgr));

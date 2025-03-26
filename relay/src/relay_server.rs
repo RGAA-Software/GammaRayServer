@@ -97,22 +97,35 @@ impl RelayServer {
         let room_mgr = context.lock().await.room_mgr.clone();
 
         let mut recv_task = tokio::spawn(async move {
+            // device id
             let device_id = params.get("device_id").unwrap_or(&"".to_string()).clone();
-            tracing::info!("connected device id: {}", device_id);
+            // socket sender
             let sender = Arc::new(Mutex::new(sender));
-            let relay_conn = RelayConn::new(context.clone(), sender, device_id.clone()).await;
 
-            conn_mgr.lock().await.add_connection(&device_id, relay_conn.clone()).await;
+            // www host
+            let addr = who.clone().to_string();
+            let mut t = addr.splitn(2, ':');
+            let client_w3c_host = t.next().unwrap_or("").to_string();
 
+            tracing::info!("connected device id: {}, client w3c host: {}", device_id, client_w3c_host);
+            
+            // make relay conn
+            let relay_conn = RelayConn::new(context.clone(), sender, device_id.clone(), client_w3c_host).await;
+            
+            // add to manager
+            conn_mgr.lock().await.add_connection(device_id.clone(), relay_conn.clone()).await;
+        
+            // wait for messages
             while let Some(Ok(msg)) = receiver.next().await {
                 // print message and break if instructed to do so
                 if RelayServer::process_message(context.clone(), relay_conn.clone(), msg, who).await.is_break() {
                     break;
                 }
             }
-
+            
+            // this connection has disconnected
             // remove connection
-            conn_mgr.lock().await.remove_connection(&device_id).await;
+            conn_mgr.lock().await.remove_connection(device_id.clone()).await;
             // remote room
             room_mgr.lock().await.destroy_room_by_creator(device_id).await;
         });

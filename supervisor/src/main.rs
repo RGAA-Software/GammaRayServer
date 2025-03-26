@@ -12,6 +12,7 @@ mod spvr_handler_server;
 mod spvr_defs;
 mod spvr_handler_device;
 mod spvr_event_mgr;
+mod spvr_errors;
 
 use crate::spvr_conn_mgr::SpvrConnManager;
 use crate::spvr_grpc_profile_client_mgr::SpvrGrpcProfileClientMgr;

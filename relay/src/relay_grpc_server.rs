@@ -10,7 +10,7 @@ use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use protocol::grpc_relay::grpc_relay_server::{GrpcRelay, GrpcRelayServer};
 use protocol::grpc_base::{HeartBeatReply, HeartBeatRequest};
 use protocol::grpc_relay::{RelayQueryDeviceReply, RelayQueryDeviceRequest, RelayStreamReply, RelayStreamRequest};
-use crate::gRelaySettings;
+use crate::{gRelayConnMgr, gRelaySettings};
 
 type EchoResult<T> = Result<Response<T>, Status>;
 type ResponseStream = Pin<Box<dyn Stream<Item = Result<RelayStreamReply, Status>> + Send>>;
@@ -124,13 +124,43 @@ impl GrpcRelay for RelayGrpcServer {
     }
 
     async fn query_device(&self, request: Request<RelayQueryDeviceRequest>) -> Result<Response<RelayQueryDeviceReply>, Status> {
-        Ok(Response::new(RelayQueryDeviceReply {
-            has_device: false,
-            device_id: "1".to_string(),
-            in_w3c_ip: "2".to_string(),
-            in_local_ip: "3".to_string(),
-            grpc_port: "4".to_string(),
-            working_port: "5".to_string(),
-        }))
+        let device_id = request.into_inner().device_id;
+        let mut client_local_ips = Vec::new();
+
+        let conn =
+            gRelayConnMgr.lock().await.get_connection(device_id.clone()).await.clone();
+        if let None = conn {
+            Ok(Response::new(RelayQueryDeviceReply {
+                has_device: false,
+                device_id,
+                client_w3c_ip: "".to_string(),
+                client_local_ips,
+                server_grpc_port: 0,
+                server_working_port: 0,
+                server_w3c_ip: "".to_string(),
+                server_local_ip: "".to_string(),
+            }))
+        }
+        else {
+            let conn = conn.unwrap();
+            let client_w3c_ip = conn.lock().await.client_w3c_host.clone();
+            for info in conn.lock().await.client_net_info.clone() {
+                client_local_ips.push(info.ip.clone());
+            }
+
+            let server_w3c_ip = gRelaySettings.lock().await.server_w3c_ip.clone();
+            let server_working_port = gRelaySettings.lock().await.server_working_port as i32;
+
+            Ok(Response::new(RelayQueryDeviceReply {
+                has_device: true,
+                device_id,
+                client_w3c_ip,
+                client_local_ips,
+                server_w3c_ip,
+                server_local_ip: "".to_string(),
+                server_grpc_port: 0,
+                server_working_port,
+            }))
+        }
     }
 }

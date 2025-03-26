@@ -20,15 +20,15 @@ impl RelayConnManager {
         }
     }
     
-    pub async fn add_connection(&mut self, device_id: &String, relay_conn: Arc<Mutex<RelayConn>>) {
+    pub async fn add_connection(&mut self, device_id: String, relay_conn: Arc<Mutex<RelayConn>>) {
         self.relay_conns.lock().await.insert(device_id.clone(), relay_conn);
     }
     
-    pub async fn remove_connection(&self, device_id: &String) {
-        self.relay_conns.lock().await.remove(device_id);
+    pub async fn remove_connection(&self, device_id: String) {
+        self.relay_conns.lock().await.remove(&device_id);
     }
 
-    pub async fn get_connection(&self, device_id: &String) -> Option<Arc<Mutex<RelayConn>>> {
-        self.relay_conns.lock().await.get(device_id).cloned()
+    pub async fn get_connection(&self, device_id: String) -> Option<Arc<Mutex<RelayConn>>> {
+        self.relay_conns.lock().await.get(&device_id).cloned()
     }
 }
