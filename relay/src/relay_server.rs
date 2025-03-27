@@ -7,10 +7,12 @@ use std::sync::Arc;
 use axum::extract::{ConnectInfo, Query, State};
 use axum::routing::{get, post};
 use axum::{extract::ws::{Message, WebSocket, WebSocketUpgrade}, response::IntoResponse, routing::any, Json, Router, ServiceExt};
+use axum::serve::ListenerExt;
 use axum_extra::TypedHeader;
 use futures_util::StreamExt;
 use prost::Message as ProstMessage;
 use tokio::sync::Mutex;
+use tokio_tungstenite::WebSocketStream;
 use crate::relay_context::RelayContext;
 
 use tower_http::{
@@ -53,7 +55,11 @@ impl RelayServer {
             // );
 
         // run our app with hyper, listening globally on port 3000
-        let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap();
+        let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap().tap_io(|tcp_stream| {
+            if let Err(err) = tcp_stream.set_nodelay(true) {
+                eprintln!("failed to set TCP_NODELAY on incoming connection: {err:#}");
+            }
+        });
         //axum::serve(listener, app).await.unwrap();
         axum::serve(listener,  app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
     }
@@ -90,7 +96,7 @@ impl RelayServer {
 
     async fn handle_socket(context: Arc<Mutex<RelayContext>>,
                            params: HashMap<String, String>,
-                           socket: WebSocket,
+                           mut socket: WebSocket,
                            who: SocketAddr) {
         let (sender, mut receiver) = socket.split();
         let conn_mgr = context.lock().await.conn_mgr.clone();
@@ -158,7 +164,7 @@ impl RelayServer {
                 let value: serde_json::error::Result<serde_json::Value> = serde_json::from_str(data.as_str());
                 if let Err(e) = value {
                     tracing::error!("parse json error: {e}, json: {}", data.to_string());
-                    return ControlFlow::Break(());
+                    //return ControlFlow::Break(());
                 }
             }
             Message::Binary(data) => {
