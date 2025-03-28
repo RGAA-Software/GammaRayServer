@@ -1,5 +1,6 @@
 use std::cmp::max;
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::sync::Arc;
 use axum::body::Bytes;
 use prost::Message;
@@ -8,18 +9,19 @@ use redis::{AsyncCommands, Commands, RedisResult};
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 use protocol::relay::{RelayCreateRoomRespMessage, RelayErrorCode, RelayMessage, RelayMessageType, RelayRoomDestroyedMessage, RelayRoomPreparedMessage};
+use crate::gRedisConn;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_message::{KEY_CREATE_TIMESTAMP, KEY_DEVICE_ID, KEY_LAST_UPDATE_TIMESTAMP, KEY_REMOTE_DEVICE_ID, KEY_ROOM_ID};
 use crate::relay_proto_maker::make_error_message;
 use crate::relay_room::RelayRoom;
 
 pub struct RelayRoomManager {
-    pub redis_conn: Arc<Mutex<MultiplexedConnection>>,
+    pub redis_conn: Arc<Mutex<Option<MultiplexedConnection>>>,
     pub conn_mgr: Arc<Mutex<RelayConnManager>>,
 }
 
 impl RelayRoomManager {
-    pub fn new(redis_conn: Arc<Mutex<MultiplexedConnection>>,
+    pub fn new(redis_conn: Arc<Mutex<Option<MultiplexedConnection>>>,
                conn_mgr: Arc<Mutex<RelayConnManager>>)
         -> Self {
         Self {
@@ -71,7 +73,7 @@ impl RelayRoomManager {
         ];
 
         let result = self.redis_conn
-            .lock().await
+            .lock().await.as_mut().expect("")
             .hset_multiple::<String, &str, String, ()>(room_id.clone(), &relay_room_info).await;
         if let Err(err) = result {
             tracing::error!("insert to redis failed {:?}, room id: {}", err, room_id);
@@ -82,7 +84,7 @@ impl RelayRoomManager {
     }
 
     pub async fn find_room(&self, room_id: String) -> Option<RelayRoom> {
-        let result = self.redis_conn.lock().await
+        let result = self.redis_conn.lock().await.as_mut().expect("")
             .hgetall::<String, Vec<(String, String)>>(room_id.clone()).await;
         if let Err(err) = result {
             tracing::error!("Could not find room: {} in redis", room_id);
@@ -127,15 +129,13 @@ impl RelayRoomManager {
 
     pub async fn find_room_ids(&self, page: i32, page_size: i32) -> Vec<String> {
         let begin = max(0, page - 1) * page_size;
-
-        let conn = &mut *self.redis_conn.lock().await;
         let pattern = "relay-room:*";
         let cursor = begin as u64;
         let r: RedisResult<(u64, Vec<String>)> = redis::cmd("SCAN")
             .cursor_arg(cursor)
             .arg("MATCH").arg(pattern)
             .arg("COUNT").arg(page_size)
-            .query_async(conn)
+            .query_async(self.redis_conn.lock().await.as_mut().expect(""))
             .await;
         if let Err(err) = r {
             tracing::error!("Could not find rooms in redis, err: {}", err);
@@ -147,7 +147,7 @@ impl RelayRoomManager {
     }
 
     pub async fn destroy_room_by_creator(&self, device_id: String) {
-        let r = self.redis_conn.lock().await
+        let r = self.redis_conn.lock().await.as_mut().expect("")
             .keys::<String, Vec<String>>(format!("relay-room:{}*", device_id)).await;
         if let Err(err) = r {
             tracing::error!("Could not find rooms created by: {}, err: {}", device_id, err);
@@ -157,7 +157,8 @@ impl RelayRoomManager {
         let room_ids = r.unwrap();
         for room_id in room_ids.iter() {
             let room_info =
-                self.redis_conn.lock().await.hgetall::<&String, Vec<(String, String)>>(room_id).await;
+                self.redis_conn.lock().await.as_mut().expect("")
+                    .hgetall::<&String, Vec<(String, String)>>(room_id).await;
             if let Err(err) = room_info {
                 tracing::error!("Could not find room info: {} in redis", room_id);
                 continue;
@@ -190,21 +191,18 @@ impl RelayRoomManager {
             }
 
             //
-            _ = self.redis_conn.lock().await.del::<&String, ()>(room_id).await;
+            _ = self.redis_conn.lock().await.as_mut().expect("").del::<&String, ()>(room_id).await;
         }
     }
 
     pub async fn on_heartbeat_for_my_room(&self, device_id: String) {
-        let r = self.redis_conn.lock().await
-            .keys::<String, Vec<String>>(format!("relay-room:{}*", device_id)).await;
-        if let Err(err) = r {
-            tracing::error!("Could not find rooms created by: {}, err: {}", device_id, err);
-            return;
-        }
-
+        let r = gRedisConn.lock().await
+            .as_mut().expect("")
+            .keys::<String, Vec<String>>(format!("relay-room:{}*", device_id)).await;;
         let room_ids = r.unwrap();
         for room_id in room_ids.iter() {
-            _ = self.redis_conn.lock().await
+            _ = gRedisConn.lock().await
+                .as_mut().expect("")
                 .hset::<&String, &str, String, ()>(room_id, KEY_LAST_UPDATE_TIMESTAMP, base::get_current_timestamp().to_string()).await;
         }
     }

@@ -22,7 +22,7 @@ use base::{json_util, RespMessage};
 use protocol::relay::{RelayMessage, RelayMessageType};
 use crate::relay_conn::RelayConn;
 use crate::relay_conn_mgr::RelayConnManager;
-use crate::{relay_message, relay_room_handler};
+use crate::{gRelayConnMgr, gRoomMgr, relay_message, relay_room_handler};
 
 pub struct RelayServer {
     pub host: String,
@@ -56,8 +56,12 @@ impl RelayServer {
 
         // run our app with hyper, listening globally on port 3000
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap().tap_io(|tcp_stream| {
-            if let Err(err) = tcp_stream.set_nodelay(true) {
-                eprintln!("failed to set TCP_NODELAY on incoming connection: {err:#}");
+            if let Ok(nodelay) = tcp_stream.nodelay() {
+                if !nodelay {
+                    if let Err(err) = tcp_stream.set_nodelay(true) {
+                        tracing::error!("failed to set TCP_NODELAY on incoming connection: {err:#}");
+                    }
+                }
             }
         });
         //axum::serve(listener, app).await.unwrap();
@@ -99,8 +103,6 @@ impl RelayServer {
                            mut socket: WebSocket,
                            who: SocketAddr) {
         let (sender, mut receiver) = socket.split();
-        let conn_mgr = context.lock().await.conn_mgr.clone();
-        let room_mgr = context.lock().await.room_mgr.clone();
 
         let mut recv_task = tokio::spawn(async move {
             // device id
@@ -119,8 +121,10 @@ impl RelayServer {
             let relay_conn = RelayConn::new(context.clone(), sender, device_id.clone(), client_w3c_host).await;
             
             // add to manager
-            conn_mgr.lock().await.add_connection(device_id.clone(), relay_conn.clone()).await;
-        
+            gRelayConnMgr.lock().await.add_connection(device_id.clone(), relay_conn.clone()).await;
+
+            tracing::info!("will receive messages");
+
             // wait for messages
             while let Some(Ok(msg)) = receiver.next().await {
                 // print message and break if instructed to do so
@@ -131,9 +135,11 @@ impl RelayServer {
             
             // this connection has disconnected
             // remove connection
-            conn_mgr.lock().await.remove_connection(device_id.clone()).await;
+            gRelayConnMgr.lock().await.remove_connection(device_id.clone()).await;
             // remote room
-            room_mgr.lock().await.destroy_room_by_creator(device_id).await;
+            gRoomMgr.lock().await
+                .as_mut().expect("not have room manager")
+                .destroy_room_by_creator(device_id).await;
         });
 
         tokio::select! {
@@ -154,8 +160,6 @@ impl RelayServer {
                              msg: Message,
                              who: SocketAddr)
         -> ControlFlow<(), ()> {
-
-        let room_mgr = context.lock().await.room_mgr.clone();
         match msg {
             Message::Text(data) => {
                 // append received data size
@@ -171,6 +175,7 @@ impl RelayServer {
                 relay_conn.lock().await.append_received_data_size(data.len()).await;
                 let m = RelayMessage::decode(data.clone());
                 if let Err(e) = m {
+                    tracing::error!("decode relay message failed: {}", e);
                     return ControlFlow::Break(());
                 }
                 let m = m.unwrap();
@@ -185,20 +190,24 @@ impl RelayServer {
                     relay_conn.lock().await.on_error(m).await
                 }
                 else if m_type == RelayMessageType::KRelayTargetMessage {
-                    //relay_conn.lock().await.on_relay(m, data).await;
-                    //relay_conn.self.append_received_data_size(om.len()).await;
-                    room_mgr.lock().await.on_relay(m, data).await;
+                    gRoomMgr.lock().await
+                        .as_mut().expect("not have room manager")
+                        .on_relay(m, data).await;
                 }
                 else if m_type == RelayMessageType::KRelayCreateRoom {
-                    //relay_conn.lock().await.on_create_room(m, data).await;
-                    room_mgr.lock().await.on_create_room(m, data).await;
+                    gRoomMgr.lock().await
+                        .as_mut().expect("")
+                        .on_create_room(m, data).await;
                 }
                 else if m_type == RelayMessageType::KRelayRequestControl {
-                    //relay_conn.lock().await.on_request_control(m, data).await;
-                    room_mgr.lock().await.on_request_control(m, data).await;
+                    gRoomMgr.lock().await
+                        .as_mut().expect("")
+                        .on_request_control(m, data).await;
                 }
                 else if m_type == RelayMessageType::KRelayRequestControlResp {
-                    room_mgr.lock().await.on_request_control_resp(m, data).await;
+                    gRoomMgr.lock().await
+                        .as_mut().expect("")
+                        .on_request_control_resp(m, data).await;
                 }
                 return ControlFlow::Continue(());
             }

@@ -14,6 +14,8 @@ mod relay_grpc_server;
 mod relay_spvr_client;
 
 use std::sync::Arc;
+use redis::aio::MultiplexedConnection;
+use redis::AsyncCommands;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use tracing_log::LogTracer;
@@ -23,6 +25,7 @@ use base::log_util;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_context::RelayContext;
 use crate::relay_grpc_server::RelayGrpcServer;
+use crate::relay_room_mgr::RelayRoomManager;
 use crate::relay_server::RelayServer;
 use crate::relay_settings::RelaySettings;
 use crate::relay_spvr_client::RelaySpvrClient;
@@ -32,33 +35,43 @@ lazy_static::lazy_static! {
     pub static ref gRelayGrpcServer: Arc<Mutex<RelayGrpcServer>> = Arc::new(Mutex::new(RelayGrpcServer::new()));
     pub static ref gRelaySpvrClient: Arc<Mutex<RelaySpvrClient>> = Arc::new(Mutex::new(RelaySpvrClient::new()));
     pub static ref gRelayConnMgr: Arc<Mutex<RelayConnManager>> = Arc::new(Mutex::new(RelayConnManager::new()));
+    pub static ref gRedisConn: Arc<Mutex<Option<MultiplexedConnection>>> = Arc::new(Mutex::new(None));
+    pub static ref gRoomMgr: Arc<Mutex<Option<RelayRoomManager>>> = Arc::new(Mutex::new(None));
 }
 
 #[tokio::main]
 async fn main() {
     let _guard = log_util::init_log("logs/relay/".to_string(), "log_relay".to_string());
 
+    // settings
     gRelaySettings.lock().await.load().await;
 
-    let context = RelayContext::new().await;
-    if let Err(err) = context {
-        tracing::error!("Create RelayContext failed: {}", err);
-        return;
+    // redis
+    {
+        let redis_url = gRelaySettings.lock().await.redis_url.clone();
+        let redis_client = redis::Client::open(redis_url.clone()).unwrap();
+        let redis_conn = redis_client.get_multiplexed_async_connection().await;
+        if let Err(err) = redis_conn {
+            tracing::error!("connect to redis failed: {}", err.to_string());
+            return;
+        }
+        tracing::info!("connect to redis: {}", redis_url);
+        let redis_conn = redis_conn.unwrap();
+        // redis_guard will hold the MutexGuard<>, MUST use a temporary variable
+        let mut redis_guard = gRedisConn.lock().await;
+        *redis_guard = Some(redis_conn);
     }
-    let context = context.unwrap();
+
+    // room manager
+    {
+        // room_mgr_guard will hold the MutexGuard<>, MUST use a temporary variable
+        let mut room_mgr_guard = gRoomMgr.lock().await;
+        *room_mgr_guard = Some(RelayRoomManager::new(gRedisConn.clone(), gRelayConnMgr.clone()));
+    }
+
+    let context = RelayContext::new();
     let context = Arc::new(Mutex::new(context));
     context.lock().await.init();
-
-    // grpc relay server
-    // std::thread::spawn(|| {
-    //     let rt = Runtime::new().expect("Failed to create Tokio runtime");
-    //     rt.block_on(async move {
-    //         tracing::info!("will start grpc relay server.");
-    //         let grpc_relay = RelayGrpcServer::new();
-    //         grpc_relay.start().await;
-    //         tracing::info!("after grpc relay server.");
-    //     });
-    // });
 
     tokio::spawn(async move {
         tracing::info!("will start grpc relay server.");

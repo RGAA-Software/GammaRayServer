@@ -9,6 +9,7 @@ use redis::AsyncCommands;
 use tokio::sync::Mutex;
 use protocol::relay;
 use protocol::relay::RelayMessage;
+use crate::{gRedisConn, gRelayConnMgr, gRoomMgr};
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_context::RelayContext;
 use crate::relay_proto_maker::make_error_message;
@@ -17,8 +18,6 @@ use crate::relay_room_mgr::RelayRoomManager;
 pub struct RelayConn {
     pub context: Arc<Mutex<RelayContext>>,
     pub sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
-    pub conn_mgr: Arc<Mutex<RelayConnManager>>,
-    pub room_mgr: Arc<Mutex<RelayRoomManager>>,
     pub device_id: String,
     pub last_update_timestamp: i64,
     pub heartbeat_index: i64,
@@ -32,13 +31,9 @@ impl RelayConn {
                sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
                device_id: String,
                client_w3c_host: String) -> Arc<Mutex<RelayConn>> {
-        let conn_mgr = context.lock().await.conn_mgr.clone();
-        let room_mgr = context.lock().await.room_mgr.clone();
         Arc::new(Mutex::new(RelayConn {
             context,
             sender,
-            conn_mgr,
-            room_mgr,
             device_id,
             last_update_timestamp: base::get_current_timestamp(),
             heartbeat_index: 0,
@@ -50,10 +45,9 @@ impl RelayConn {
     pub async fn append_received_data_size(&mut self, size: usize) {
         // to redis; key: year/month/
         let key = format!("{}", "".to_string());
-        let r = self.context.lock().await
-            .redis_conn.lock().await
-            .set::<String, String, ()>("".to_string(), "".to_string()).await;
-        if let Err(e) = r {
+        if let Err(e) = gRedisConn.lock().await
+            .as_mut().expect("not have redis conn")
+            .set::<String, String, ()>("".to_string(), "".to_string()).await {
             tracing::error!("update received data for: {} failed", key);
         }
     }
@@ -61,10 +55,9 @@ impl RelayConn {
     pub async fn append_send_data_size(&mut self, size: usize) {
         // to redis
         let key = format!("{}", "".to_string());
-        let r = self.context.lock().await
-            .redis_conn.lock().await
-            .set::<String, String, ()>("".to_string(), "".to_string()).await;
-        if let Err(e) = r {
+        if let Err(e) = gRedisConn.lock().await
+            .as_mut().expect("not have redis conn")
+            .set::<String, String, ()>("".to_string(), "".to_string()).await {
             tracing::error!("update send data for: {} failed", key);
         }
     }
@@ -80,9 +73,9 @@ impl RelayConn {
         if let Some(heartbeat) = m.heartbeat {
             self.heartbeat_index = heartbeat.index;
             self.client_net_info = heartbeat.net_info;
-            self.room_mgr.lock().await
+            gRoomMgr.lock().await
+                .as_mut().expect("not have room manager")
                 .on_heartbeat_for_my_room(m.from_device_id).await;
-            //tracing::info!("received heartbeat message: {}, net info: {:#?}", self.heartbeat_index, self.client_net_info);
         }
     }
 
