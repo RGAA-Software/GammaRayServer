@@ -34,6 +34,8 @@ pub struct RelayHeartBeat {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RelayTargetMessage {
+    #[prost(int64, tag = "5")]
+    pub relay_msg_index: i64,
     #[prost(string, repeated, tag = "10")]
     pub room_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(bytes = "vec", tag = "30")]

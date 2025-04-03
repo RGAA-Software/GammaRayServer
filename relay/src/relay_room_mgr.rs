@@ -3,21 +3,26 @@ use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use axum::body::Bytes;
+use futures_util::stream::SplitStream;
 use prost::Message;
 use redis::aio::MultiplexedConnection;
 use redis::{AsyncCommands, Commands, RedisResult};
 use tokio::runtime::Handle;
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc::{Receiver, Sender};
 use protocol::relay::{RelayCreateRoomRespMessage, RelayErrorCode, RelayMessage, RelayMessageType, RelayRoomDestroyedMessage, RelayRoomPreparedMessage};
 use crate::gRedisConn;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_message::{KEY_CREATE_TIMESTAMP, KEY_DEVICE_ID, KEY_LAST_UPDATE_TIMESTAMP, KEY_REMOTE_DEVICE_ID, KEY_ROOM_ID};
 use crate::relay_proto_maker::make_error_message;
+use crate::relay_queue::{RelayPacket, RelayQueue};
 use crate::relay_room::RelayRoom;
 
 pub struct RelayRoomManager {
     pub redis_conn: Arc<Mutex<Option<MultiplexedConnection>>>,
     pub conn_mgr: Arc<Mutex<RelayConnManager>>,
+    pub relay_queue: Arc<Mutex<HashMap<String, RelayQueue>>>,
+
 }
 
 impl RelayRoomManager {
@@ -27,6 +32,7 @@ impl RelayRoomManager {
         Self {
             redis_conn,
             conn_mgr,
+            relay_queue: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -60,7 +66,7 @@ impl RelayRoomManager {
             room_id: room_id.clone(),
             create_timestamp: base::get_current_timestamp(),
             last_update_timestamp: base::get_current_timestamp(),
-            devices,
+            relay_conns: devices,
         };
 
         // to redis
@@ -80,6 +86,11 @@ impl RelayRoomManager {
             return None
         }
 
+        // relay queue
+        let mut queue = RelayQueue::new(room_id.clone());
+        queue.run().await;
+        self.relay_queue.lock().await.insert(room_id.clone(), queue);
+
         Some(relay_room)
     }
 
@@ -87,7 +98,7 @@ impl RelayRoomManager {
         let result = self.redis_conn.lock().await.as_mut().expect("")
             .hgetall::<String, Vec<(String, String)>>(room_id.clone()).await;
         if let Err(err) = result {
-            tracing::error!("Could not find room: {} in redis", room_id);
+            tracing::error!("Could not find room: {} in redis, err: {}", room_id, err);
             return None
         }
 
@@ -112,11 +123,11 @@ impl RelayRoomManager {
         }
 
         if let Some(device) =  self.conn_mgr.lock().await.get_connection(relay_room.device_id.clone()).await {
-            relay_room.devices.insert(relay_room.device_id.clone(), device.clone());
+            relay_room.relay_conns.insert(relay_room.device_id.clone(), device.clone());
             //tracing::info!("found device {:?}", relay_room.device_id);
         }
         if let Some(remote_device) = self.conn_mgr.lock().await.get_connection(relay_room.remote_device_id.clone()).await {
-            relay_room.devices.insert(relay_room.remote_device_id.clone(), remote_device.clone());
+            relay_room.relay_conns.insert(relay_room.remote_device_id.clone(), remote_device.clone());
             //tracing::info!("found remote device {:?}", relay_room.remote_device_id);
         }
 
@@ -160,7 +171,7 @@ impl RelayRoomManager {
                 self.redis_conn.lock().await.as_mut().expect("")
                     .hgetall::<&String, Vec<(String, String)>>(room_id).await;
             if let Err(err) = room_info {
-                tracing::error!("Could not find room info: {} in redis", room_id);
+                tracing::error!("Could not find room info: {} in redis, err: {}", room_id, err);
                 continue;
             }
 
@@ -185,20 +196,29 @@ impl RelayRoomManager {
                 if let Some(remote_device) = self.conn_mgr.lock().await
                     .get_connection(target_remote_device_id).await {
                     tokio::spawn(async move {
-                        _ = remote_device.lock().await.send_binary_message(Bytes::from(r)); 
+                        _ = remote_device.lock().await.send_bin_message(Bytes::from(r)).await;
                     });
                 }
             }
 
-            //
+            // delete info in redis
             _ = self.redis_conn.lock().await.as_mut().expect("").del::<&String, ()>(room_id).await;
+
+            // exit relay queue
+            let relay_queue = self.relay_queue.clone();
+            let rid = room_id.clone();
+            tokio::spawn(async move {
+                if let Some(queue) = relay_queue.lock().await.get(rid.as_str()) {
+                    queue.exit().await;
+                }
+            });
         }
     }
 
     pub async fn on_heartbeat_for_my_room(&self, device_id: String) {
         let r = gRedisConn.lock().await
             .as_mut().expect("")
-            .keys::<String, Vec<String>>(format!("relay-room:{}*", device_id)).await;;
+            .keys::<String, Vec<String>>(format!("relay-room:{}*", device_id)).await;
         let room_ids = r.unwrap();
         for room_id in room_ids.iter() {
             _ = gRedisConn.lock().await
@@ -213,19 +233,31 @@ impl RelayRoomManager {
 
         let sub = m.relay.unwrap();
         let from_device_id = m.from_device_id;
+        let relay_msg_index = sub.relay_msg_index;
         for room_id in sub.room_ids.iter() {
             let room = self.find_room(room_id.clone()).await;
             if let Some(room) = room {
                 let from_device_id = from_device_id.clone();
                 let om = om.clone();
-                tokio::spawn(async move {
-                    room.notify_except(from_device_id, om).await;
-                });
+
+                let id = room_id.clone();
+                if let Some(queue) = self.relay_queue.lock().await.get(&id) {
+                    queue.send(RelayPacket {
+                        except_id: from_device_id,
+                        room,
+                        payload: om,
+                        relay_msg_index,
+                    }).await;
+                }
+
+                // tokio::spawn(async move {
+                //     room.notify_except(from_device_id, relay_msg_index, om).await;
+                // });
             }
         }
     }
 
-    pub async fn on_create_room(&self, m: RelayMessage, om: Bytes) {
+    pub async fn on_create_room(&self, m: RelayMessage, _om: Bytes) {
         let sub = m.create_room.unwrap();
         let room = self.create_room(sub.device_id.clone(), sub.remote_device_id.clone()).await;
         let resp_msg;
@@ -247,7 +279,7 @@ impl RelayRoomManager {
 
         if let Some(device) = self.conn_mgr.lock().await
             .get_connection(sub.device_id.clone()).await {
-            _ = device.lock().await.send_binary_message(Bytes::from(resp_msg)).await;
+            _ = device.lock().await.send_bin_message(Bytes::from(resp_msg)).await;
         }
     }
 
@@ -257,14 +289,14 @@ impl RelayRoomManager {
         let remote_device_id = sub.remote_device_id;
         let remote_conn = self.conn_mgr.lock().await.get_connection(remote_device_id.clone()).await;
         if let Some(remote_conn) = remote_conn {
-            remote_conn.lock().await.send_binary_message(om).await;
+            remote_conn.lock().await.send_bin_message(om).await;
             tracing::info!("request control message to: {}", remote_device_id);
         }
         else {
             let r = make_error_message(RelayErrorCode::KRelayCodeRemoteClientNotFound);
             if let Some(device)
                 = self.conn_mgr.lock().await.get_connection(from_device_id).await {
-                _ = device.lock().await.send_binary_message(Bytes::from(r)).await;
+                _ = device.lock().await.send_bin_message(Bytes::from(r)).await;
             }
         }
     }
@@ -272,7 +304,7 @@ impl RelayRoomManager {
     pub async fn on_request_control_resp(&self, m: RelayMessage, om: Bytes) {
         let sub = m.request_control_resp.unwrap();
         let req_device_id = sub.device_id.clone();
-        let remote_device_id = sub.remote_device_id.clone();
+        //let remote_device_id = sub.remote_device_id.clone();
         let req_device
             = self.conn_mgr.lock().await.get_connection(req_device_id.clone()).await;
         if let None = req_device {
@@ -280,7 +312,7 @@ impl RelayRoomManager {
             return;
         }
         let req_device = req_device.unwrap();
-        req_device.lock().await.send_binary_message(om.clone()).await;
+        req_device.lock().await.send_bin_message(om.clone()).await;
 
         if sub.under_control {
             tracing::info!("{} is under control", sub.remote_device_id);
@@ -290,7 +322,7 @@ impl RelayRoomManager {
                 tracing::error!("can't find room: {}", room_id);
                 return;
             }
-            let room = room.unwrap();
+            //let room = room.unwrap();
 
             let resp_device =
                 self.conn_mgr.lock().await.get_connection(sub.remote_device_id.clone()).await;
@@ -312,12 +344,12 @@ impl RelayRoomManager {
 
             // 1. to requester
             tokio::spawn(async move {
-                req_device.lock().await.send_binary_message(Bytes::from(r)).await;
+                req_device.lock().await.send_bin_message(Bytes::from(r)).await;
             });
 
             // 2. to remote
             tokio::spawn(async move {
-                resp_device.lock().await.send_binary_message(Bytes::from(rr)).await;
+                resp_device.lock().await.send_bin_message(Bytes::from(rr)).await;
             });
         }
     }

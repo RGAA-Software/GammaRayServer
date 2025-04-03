@@ -12,6 +12,7 @@ mod relay_settings;
 mod relay_statistics;
 mod relay_grpc_server;
 mod relay_spvr_client;
+mod relay_queue;
 
 use std::sync::Arc;
 use redis::aio::MultiplexedConnection;

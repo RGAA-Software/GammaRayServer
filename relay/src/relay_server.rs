@@ -100,7 +100,7 @@ impl RelayServer {
 
     async fn handle_socket(context: Arc<Mutex<RelayContext>>,
                            params: HashMap<String, String>,
-                           mut socket: WebSocket,
+                           socket: WebSocket,
                            who: SocketAddr) {
         let (sender, mut receiver) = socket.split();
 
@@ -132,14 +132,16 @@ impl RelayServer {
                     break;
                 }
             }
-            
-            // this connection has disconnected
-            // remove connection
-            gRelayConnMgr.lock().await.remove_connection(device_id.clone()).await;
+
+            tracing::info!("remove device: {}", device_id);
             // remote room
             gRoomMgr.lock().await
                 .as_mut().expect("not have room manager")
-                .destroy_room_by_creator(device_id).await;
+                .destroy_room_by_creator(device_id.clone()).await;
+            // this connection has disconnected
+            // remove connection
+            relay_conn.lock().await.last_relay_msg_index = 0;
+            gRelayConnMgr.lock().await.remove_connection(device_id).await;
         });
 
         tokio::select! {
@@ -180,6 +182,8 @@ impl RelayServer {
                 }
                 let m = m.unwrap();
                 let m_type = m.r#type;
+                //tracing::info!("from: {} message type: {}", m.from_device_id, m_type);
+
                 if m_type == RelayMessageType::KRelayHello {
                     relay_conn.lock().await.on_hello(m).await;
                 }
@@ -190,8 +194,7 @@ impl RelayServer {
                     relay_conn.lock().await.on_error(m).await
                 }
                 else if m_type == RelayMessageType::KRelayTargetMessage {
-                    gRoomMgr.lock().await
-                        .as_mut().expect("not have room manager")
+                    gRoomMgr.lock().await.as_mut().expect("not have room manager")
                         .on_relay(m, data).await;
                 }
                 else if m_type == RelayMessageType::KRelayCreateRoom {

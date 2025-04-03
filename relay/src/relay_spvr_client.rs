@@ -29,7 +29,7 @@ impl RelaySpvrClient {
         tokio::spawn(async move {
             loop {
                 let ws_stream = match connect_async(address.clone()).await {
-                    Ok((mut stream, response)) => {
+                    Ok((mut stream, _response)) => {
                         tracing::info!("Connected to {}", address);
                         let settings = &mut *gRelaySettings.lock().await;
                         let mut m = SpvrInnerMessage::default();

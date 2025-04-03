@@ -11,7 +11,7 @@ pub struct RelayRoom {
     pub room_id: String,
     pub create_timestamp: i64,
     pub last_update_timestamp: i64,
-    pub devices: HashMap<String, Arc<Mutex<RelayConn>>>
+    pub relay_conns: HashMap<String, Arc<Mutex<RelayConn>>>
 }
 
 impl Default for RelayRoom {
@@ -22,14 +22,14 @@ impl Default for RelayRoom {
             room_id: "".to_string(),
             create_timestamp: 0,
             last_update_timestamp: 0,
-            devices: HashMap::new(),
+            relay_conns: HashMap::new(),
         }
     }
 }
 
 impl RelayRoom {
     pub fn is_valid(&self) -> bool {
-        !self.devices.is_empty()
+        !self.relay_conns.is_empty()
             && !self.remote_device_id.is_empty()
             && !self.room_id.is_empty()
     }
@@ -44,39 +44,39 @@ impl RelayRoom {
         hm
     }
     
-    pub async fn notify_except(&self, except_id: String, m: Bytes) {
-        for (device_id, device) in self.devices.iter() {
-            if *device_id == except_id {
-                continue;
+    pub async fn notify_except(&self, except_id: String, relay_msg_index: i64, m: Bytes) {
+        let mut conns = Vec::new();
+        for (key, value) in self.relay_conns.clone() {
+            if key != except_id {
+                conns.push(value.clone());
             }
-
-            let device = device.clone();
+        }
+        
+        for conn in conns {
             let m = m.clone();
-            let device_id = device_id.clone();
-            tokio::spawn(async move {
-                let r = device.lock().await.send_binary_message(m).await;
-                if !r {
-                    tracing::warn!("notify to this device failed: {}", device_id)
-                }
-            });
-        }
-    }
-
-    pub async fn notify_target(&self, target_id: &String, m: Bytes) {
-        tracing::info!("notify_target notify_except: {:?}, have {} devices", target_id, self.devices.len());
-        for device in self.devices.values() {
-            let device_id = device.lock().await.device_id.clone();
-            if *device_id == *target_id {
-                tracing::info!("relay to: {}", device_id);
-                let device = device.clone();
-                let m = m.clone();
-                let r = device.lock().await.send_binary_message(m).await;
-                if !r {
-                    tracing::warn!("notify to this device failed: {}", device_id)
-                }
-                break;
+            let device_id = conn.lock().await.device_id.clone();
+            let r = conn.lock().await.send_bin_message_with_index(relay_msg_index, m).await;
+            if !r {
+                tracing::warn!("notify to this device failed: {}", device_id)
             }
-
         }
     }
+
+    // pub async fn notify_target(&self, target_id: &String, relay_msg_index: i64, m: Bytes) {
+    //     tracing::info!("notify_target notify_except: {:?}, have {} devices", target_id, self.devices.len());
+    //     for device in self.devices.values() {
+    //         let device_id = device.lock().await.device_id.clone();
+    //         if *device_id == *target_id {
+    //             tracing::info!("relay to: {}", device_id);
+    //             let device = device.clone();
+    //             let m = m.clone();
+    //             let r = device.lock().await.send_bin_message_with_index(relay_msg_index, m).await;
+    //             if !r {
+    //                 tracing::warn!("notify to this device failed: {}", device_id)
+    //             }
+    //             break;
+    //         }
+    //
+    //     }
+    // }
 }

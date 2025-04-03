@@ -14,9 +14,9 @@ use crate::relay_message::{KEY_PAGE, KEY_PAGE_SIZE, KEY_ROOM_ID};
 
 // handler room; query single room
 pub async fn hr_query_room(
-    State(context): State<Arc<Mutex<RelayContext>>>,
+    State(_context): State<Arc<Mutex<RelayContext>>>,
     query: Query<HashMap<String, String>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ConnectInfo(_addr): ConnectInfo<SocketAddr>,
 ) -> Json<RespStringMap>  {
     let room_id = get_query_param(&query.0, KEY_ROOM_ID);
     if let None = room_id {
@@ -49,9 +49,9 @@ pub async fn hr_query_room(
 
 // handler room; query rooms
 pub async fn hr_query_rooms(
-    State(context): State<Arc<Mutex<RelayContext>>>,
+    State(_context): State<Arc<Mutex<RelayContext>>>,
     query: Query<HashMap<String, String>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ConnectInfo(_addr): ConnectInfo<SocketAddr>,
 ) -> Json<RespVecStringMap>  {
     let page = get_query_param(&query.0, KEY_PAGE);
     let page_size = get_query_param(&query.0, KEY_PAGE_SIZE);
