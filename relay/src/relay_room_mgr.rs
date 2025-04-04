@@ -249,10 +249,6 @@ impl RelayRoomManager {
                         relay_msg_index,
                     }).await;
                 }
-
-                // tokio::spawn(async move {
-                //     room.notify_except(from_device_id, relay_msg_index, om).await;
-                // });
             }
         }
     }

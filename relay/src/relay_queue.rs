@@ -22,7 +22,7 @@ pub struct RelayQueue {
 
 impl RelayQueue {
     pub fn new(room_id: String) -> Self {
-        let (sender, receiver) = mpsc::channel::<RelayPacket>(1024);
+        let (sender, receiver) = mpsc::channel::<RelayPacket>(4096);
         RelayQueue {
             room_id,
             pkt_sender: sender,
@@ -65,6 +65,18 @@ impl RelayQueue {
     }
 
     pub async fn send(&self, pkt: RelayPacket) {
+        let sender = self.pkt_sender.clone();
+        loop {
+            let cap = sender.capacity();
+            if cap <= 5 {
+                //tracing::info!("Room:{} => cap: {}, sleep 50ms", self.room_id, cap);
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+            else {
+                break;
+            }
+        }
+
         if let Err(e) = self.pkt_sender.send(pkt).await {
             tracing::error!("error sending relay message to queue: {e}");
         }
