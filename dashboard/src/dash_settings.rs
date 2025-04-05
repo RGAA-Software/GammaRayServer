@@ -21,6 +21,7 @@ impl DashSettings {
 
     fn copy_from(&mut self, source: &DashSettings) {
         self.server_port = source.server_port;
+        self.db_path = source.db_path.clone();
     }
 }
 
