@@ -15,6 +15,15 @@ impl SpvrGrpcProfileClientMgr {
             profile_conns: Arc::new(Mutex::new(HashMap::new())),
         }
     }
+
+    pub async fn get_connected_clients(&self) -> Vec<Arc<Mutex<SpvrGrpcProfileClient>>> {
+        let mut clients: Vec<Arc<Mutex<SpvrGrpcProfileClient>>> = Vec::new();
+        for c in self.profile_conns.lock().await.values() {
+            let c = c.clone();
+            clients.push(c);
+        }
+        clients
+    }
 }
 
 impl SpvrGrpcClientManager for SpvrGrpcProfileClientMgr {

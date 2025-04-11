@@ -3,11 +3,12 @@ use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::Json;
 use tokio::sync::Mutex;
-use base::{resp_empty_str, ok_resp};
+use base::{resp_empty_str, ok_resp, ok_resp_str_map, RespStringMap, resp_empty_str_map};
 use crate::pr_context::PrContext;
 use crate::pr_device::PrDevice;
 use crate::{gDatabase, RespMessage};
-use crate::pr_errors::{get_err_pair, ERR_DEVICE_NOT_FOUND, ERR_OPERATE_DB_FAILED, ERR_PARAM_INVALID};
+use crate::pr_errors::{get_err_pair, ERR_DEVICE_NOT_FOUND, ERR_OPERATE_DB_FAILED, ERR_PARAM_INVALID, ERR_PASSWORD_FAILED};
+use crate::pr_message::{KEY_DEVICE_ID, KEY_PWD_TYPE};
 
 pub struct PrDeviceHandler {
 
@@ -130,25 +131,33 @@ impl PrDeviceHandler {
 
     pub async fn verify_device_info(State(context): State<Arc<Mutex<PrContext>>>,
                                    query: Query<HashMap<String, String>>)
-                                   -> Json<RespMessage<String>> {
+                                   -> Json<RespStringMap> {
         let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
         let random_pwd_md5 = query.get("random_pwd_md5").unwrap_or(&"".to_string()).clone();
         let safety_pwd_md5 = query.get("safety_pwd_md5").unwrap_or(&"".to_string()).clone();
         if device_id.is_empty() || random_pwd_md5.is_empty() {
-            return Json(resp_empty_str(get_err_pair(ERR_PARAM_INVALID)));
+            return Json(resp_empty_str_map(get_err_pair(ERR_PARAM_INVALID)));
         }
 
         let device = gDatabase.lock().await.find_device_by_id(device_id.clone()).await;
         if let None = device {
-            return Json(resp_empty_str(get_err_pair(ERR_DEVICE_NOT_FOUND)));
+            return Json(resp_empty_str_map(get_err_pair(ERR_DEVICE_NOT_FOUND)));
         }
         let device = device.unwrap();
         let mut ok = device.device_id == device_id;
-        if !safety_pwd_md5.is_empty() {
-            let same_safety_pwd = safety_pwd_md5 == device.safety_pwd;
-            ok = ok && same_safety_pwd;
+
+        let ok_random_pwd = if random_pwd_md5 == device.random_pwd {true} else {false};
+        let ok_safety_pwd = if safety_pwd_md5 == device.safety_pwd {true} else {false};
+
+        if !ok_random_pwd && !ok_safety_pwd {
+            return Json(resp_empty_str_map(get_err_pair(ERR_PASSWORD_FAILED)));
         }
 
-        Json(ok_resp(ok.to_string()))
+        let pwd_type = if ok_random_pwd {"random"} else if ok_safety_pwd {"safety"} else {"unknown"};
+
+        let mut hm = HashMap::new();
+        hm.insert(KEY_DEVICE_ID.to_string(), device_id);
+        hm.insert(KEY_PWD_TYPE.to_string(), pwd_type.to_string());
+        Json(ok_resp_str_map(hm))
     }
 }

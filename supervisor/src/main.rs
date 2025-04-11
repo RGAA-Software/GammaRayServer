@@ -8,11 +8,12 @@ mod spvr_grpc_profile_client;
 mod spvr_grpc_relay_client_mgr;
 mod spvr_grpc_profile_client_mgr;
 mod spvr_grpc_client_mgr_trait;
-mod spvr_handler_server;
+mod spvr_server_handler;
 mod spvr_defs;
-mod spvr_handler_device;
+mod spvr_relay_handler;
 mod spvr_event_mgr;
 mod spvr_errors;
+mod spvr_profile_handler;
 
 use crate::spvr_conn_mgr::SpvrConnManager;
 use crate::spvr_grpc_profile_client_mgr::SpvrGrpcProfileClientMgr;

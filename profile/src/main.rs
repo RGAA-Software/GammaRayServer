@@ -9,6 +9,7 @@ mod pr_errors;
 mod pr_spvr_client;
 mod pr_settings;
 mod pr_grpc_server;
+mod pr_message;
 
 use std::sync::Arc;
 use axum::{

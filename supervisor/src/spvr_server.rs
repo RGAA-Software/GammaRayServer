@@ -7,7 +7,7 @@ use axum::{Json, Router};
 use axum::extract::{ConnectInfo, Query, State, WebSocketUpgrade};
 use axum::extract::ws::{Message, WebSocket};
 use axum::response::IntoResponse;
-use axum::routing::{any, get};
+use axum::routing::{any, get, post};
 use axum_extra::TypedHeader;
 use futures_util::StreamExt;
 use tokio::sync::Mutex;
@@ -18,8 +18,9 @@ use crate::{gSpvrConnMgr, gSpvrGrpcProfileClientMgr, gSpvrGrpcRelayClientMgr};
 use crate::spvr_conn::SpvrConn;
 use crate::spvr_context::SpvrContext;
 use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;
-use crate::spvr_handler_device::hd_get_device_info;
-use crate::spvr_handler_server::{hs_get_online_profile_servers, hs_get_online_relay_servers, hs_get_online_servers};
+use crate::spvr_profile_handler::hd_verify_device_info_in_profile_server;
+use crate::spvr_relay_handler::{hd_get_device_info_from_relay_server};
+use crate::spvr_server_handler::{hs_get_online_profile_servers, hs_get_online_relay_servers, hs_get_online_servers};
 
 pub struct SpvrServer {
     pub host: String,
@@ -47,8 +48,11 @@ impl SpvrServer {
             .route("/get/online/servers", get(hs_get_online_servers))
             .route("/get/online/profile/servers", get(hs_get_online_profile_servers))
             .route("/get/online/relay/servers", get(hs_get_online_relay_servers))
-            // device info
-            .route("/get/device/info", get(hd_get_device_info))
+            // relay server
+            .route("/get/device/info", get(hd_get_device_info_from_relay_server))
+
+            // profile server
+            .route("/verify/device/info", post(hd_verify_device_info_in_profile_server))
             .with_state(self.context.clone());
         
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap();

@@ -13,7 +13,8 @@ use crate::spvr_defs::{SpvrGrpcDeviceInfo, KEY_DEVICE_ID, KEY_DEVICE_LOCAL_IPS, 
 use crate::spvr_errors::{get_err_pair, ERR_DEVICE_NOT_FOUND, ERR_PARAM_INVALID};
 
 // handler device
-pub async fn hd_get_device_info(
+// get device info from RelayServer
+pub async fn hd_get_device_info_from_relay_server(
     State(context): State<Arc<Mutex<SpvrContext>>>,
     query: Query<HashMap<String, String>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
