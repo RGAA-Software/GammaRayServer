@@ -121,6 +121,24 @@ pub struct RelayRequestStopMessage {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct RelayRequestStopRespMessage {}
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RelayRequestPauseMessage {
+    #[prost(string, tag = "10")]
+    pub room_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "20")]
+    pub device_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "30")]
+    pub remote_device_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RelayRequestResumeMessage {
+    #[prost(string, tag = "10")]
+    pub room_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "20")]
+    pub device_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "30")]
+    pub remote_device_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RelayMessage {
     #[prost(string, tag = "20")]
     pub from_device_id: ::prost::alloc::string::String,
@@ -152,6 +170,10 @@ pub struct RelayMessage {
     pub request_stop: ::core::option::Option<RelayRequestStopMessage>,
     #[prost(message, optional, tag = "150")]
     pub request_stop_resp: ::core::option::Option<RelayRequestStopRespMessage>,
+    #[prost(message, optional, tag = "160")]
+    pub request_pause: ::core::option::Option<RelayRequestPauseMessage>,
+    #[prost(message, optional, tag = "170")]
+    pub request_resume: ::core::option::Option<RelayRequestResumeMessage>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -169,6 +191,8 @@ pub enum RelayMessageType {
     KRelayRoomDestroyed = 90,
     KRelayRequestStop = 100,
     KRelayRequestStopResp = 110,
+    KRelayRequestPausedStream = 120,
+    KRelayRequestResumeStream = 130,
 }
 impl RelayMessageType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -190,6 +214,8 @@ impl RelayMessageType {
             Self::KRelayRoomDestroyed => "kRelayRoomDestroyed",
             Self::KRelayRequestStop => "kRelayRequestStop",
             Self::KRelayRequestStopResp => "kRelayRequestStopResp",
+            Self::KRelayRequestPausedStream => "kRelayRequestPausedStream",
+            Self::KRelayRequestResumeStream => "kRelayRequestResumeStream",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -208,6 +234,8 @@ impl RelayMessageType {
             "kRelayRoomDestroyed" => Some(Self::KRelayRoomDestroyed),
             "kRelayRequestStop" => Some(Self::KRelayRequestStop),
             "kRelayRequestStopResp" => Some(Self::KRelayRequestStopResp),
+            "kRelayRequestPausedStream" => Some(Self::KRelayRequestPausedStream),
+            "kRelayRequestResumeStream" => Some(Self::KRelayRequestResumeStream),
             _ => None,
         }
     }

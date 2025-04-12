@@ -212,6 +212,16 @@ impl RelayServer {
                         .as_mut().expect("")
                         .on_request_control_resp(m, data).await;
                 }
+                else if m_type == RelayMessageType::KRelayRequestPausedStream {
+                    gRoomMgr.lock().await
+                        .as_mut().expect("")
+                        .on_request_resume_pause_stream(m, data).await;
+                }
+                else if m_type == RelayMessageType::KRelayRequestResumeStream {
+                    gRoomMgr.lock().await
+                        .as_mut().expect("")
+                        .on_request_resume_pause_stream(m, data).await;
+                }
                 return ControlFlow::Continue(());
             }
             Message::Close(c) => {

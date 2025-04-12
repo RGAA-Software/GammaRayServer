@@ -283,16 +283,18 @@ impl RelayRoomManager {
         let from_device_id = m.from_device_id;
         let sub = m.request_control.unwrap();
         let remote_device_id = sub.remote_device_id;
-        let remote_conn = self.conn_mgr.lock().await.get_connection(remote_device_id.clone()).await;
+        let remote_conn
+            = self.conn_mgr.lock().await.get_connection(remote_device_id.clone()).await;
+
         if let Some(remote_conn) = remote_conn {
             remote_conn.lock().await.send_bin_message(om).await;
             tracing::info!("request control message to: {}", remote_device_id);
         }
         else {
-            let r = make_error_message(RelayErrorCode::KRelayCodeRemoteClientNotFound);
-            if let Some(device)
+            if let Some(conn)
                 = self.conn_mgr.lock().await.get_connection(from_device_id).await {
-                _ = device.lock().await.send_bin_message(Bytes::from(r)).await;
+                let r = make_error_message(RelayErrorCode::KRelayCodeRemoteClientNotFound);
+                _ = conn.lock().await.send_bin_message(Bytes::from(r)).await;
             }
         }
     }
@@ -350,4 +352,23 @@ impl RelayRoomManager {
         }
     }
 
+    pub async fn on_request_resume_pause_stream(&self, m: RelayMessage, om: Bytes) {
+        let from_device_id = m.from_device_id;
+        let sub = m.request_pause.unwrap();
+        let remote_device_id = sub.remote_device_id;
+        let remote_conn
+            = self.conn_mgr.lock().await.get_connection(remote_device_id.clone()).await;
+
+        if let Some(remote_conn) = remote_conn {
+            remote_conn.lock().await.send_bin_message(om).await;
+            tracing::info!("request pause stream message to: {}", remote_device_id);
+        }
+        else {
+            if let Some(conn)
+                = self.conn_mgr.lock().await.get_connection(from_device_id).await {
+                let r = make_error_message(RelayErrorCode::KRelayCodeRemoteClientNotFound);
+                _ = conn.lock().await.send_bin_message(Bytes::from(r)).await;
+            }
+        }
+    }
 }
