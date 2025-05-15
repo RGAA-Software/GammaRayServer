@@ -354,8 +354,16 @@ impl RelayRoomManager {
 
     pub async fn on_request_resume_pause_stream(&self, m: RelayMessage, om: Bytes) {
         let from_device_id = m.from_device_id;
-        let sub = m.request_pause.unwrap();
-        let remote_device_id = sub.remote_device_id;
+        let mut remote_device_id = "".to_string();
+        if m.r#type == RelayMessageType::KRelayRequestResumeStream {
+            let sub = m.request_resume.unwrap();
+            remote_device_id = sub.remote_device_id;    
+        }
+        else if m.r#type == RelayMessageType::KRelayRequestPausedStream {
+            let sub = m.request_pause.unwrap();
+            remote_device_id = sub.remote_device_id;
+        }
+        
         let remote_conn
             = self.conn_mgr.lock().await.get_connection(remote_device_id.clone()).await;
 
