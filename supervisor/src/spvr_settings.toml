@@ -3,3 +3,9 @@ server_name = "Srv.Supervisor.01"
 
 # port
 server_port = 30500
+
+# single deploy
+single_deploy = true
+
+# show ui
+show_ui = true

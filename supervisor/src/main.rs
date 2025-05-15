@@ -14,6 +14,7 @@ mod spvr_relay_handler;
 mod spvr_event_mgr;
 mod spvr_errors;
 mod spvr_profile_handler;
+mod svpr_ui;
 
 use crate::spvr_conn_mgr::SpvrConnManager;
 use crate::spvr_grpc_profile_client_mgr::SpvrGrpcProfileClientMgr;
@@ -24,6 +25,8 @@ use base::log_util;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::spvr_event_mgr::SpvrEventManager;
+use eframe::egui;
+use tracing::log;
 
 lazy_static::lazy_static! {
     pub static ref gSpvrSettings: Arc<Mutex<SpvrSettings>> = Arc::new(Mutex::new(SpvrSettings::new()));
@@ -39,7 +42,7 @@ async fn main() {
     let _guard = log_util::init_log("logs/supervisor/".to_string(), "log_supervisor".to_string());
 
     // settings
-    gSpvrSettings.lock().await.load();
+    SpvrSettings::load_settings().await;
     
     // event manager
     gSpvrEventManager.lock().await.init().await;
@@ -47,9 +50,38 @@ async fn main() {
     // context
     let context = Arc::new(Mutex::new(spvr_context::SpvrContext::new()));
     
-    // server
-    let server = SpvrServer::new("0.0.0.0".to_string(),
-                                 gSpvrSettings.lock().await.server_port,
-                                 context);
-    server.start().await;
+    let srv_task = async move {
+        // server
+        let server = SpvrServer::new("0.0.0.0".to_string(),
+                                     gSpvrSettings.lock().await.server_port,
+                                     context);
+        server.start().await;
+    };
+    
+    if gSpvrSettings.lock().await.show_ui {
+        tokio::spawn(async move {
+            srv_task.await;
+        });
+
+        let options = eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default().with_inner_size([960.0, 540.0]),
+            ..Default::default()
+        };
+        let r = eframe::run_native(
+            "GammaRay Server",
+            options,
+            Box::new(|cc| {
+                // This gives us image support:
+                egui_extras::install_image_loaders(&cc.egui_ctx);
+        
+                Ok(Box::<svpr_ui::SpvrUI>::default())
+            }),
+        );
+        if let Err(e) = r {
+            log::error!("{}", e);
+        }
+    }
+    else {
+        srv_task.await;
+    }
 }
