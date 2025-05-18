@@ -71,6 +71,7 @@ async fn main() {
             "GammaRay Server",
             options,
             Box::new(|cc| {
+                cc.egui_ctx.set_visuals(egui::Visuals::dark());
                 // This gives us image support:
                 egui_extras::install_image_loaders(&cc.egui_ctx);
         
