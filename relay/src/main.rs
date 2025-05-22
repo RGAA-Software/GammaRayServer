@@ -13,6 +13,7 @@ mod relay_statistics;
 mod relay_grpc_server;
 mod relay_spvr_client;
 mod relay_queue;
+mod relay_deploy_client;
 
 use std::sync::Arc;
 use redis::aio::MultiplexedConnection;
@@ -25,6 +26,7 @@ use tracing_subscriber::prelude::*;
 use base::log_util;
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_context::RelayContext;
+use crate::relay_deploy_client::RelayDeployClient;
 use crate::relay_grpc_server::RelayGrpcServer;
 use crate::relay_room_mgr::RelayRoomManager;
 use crate::relay_server::RelayServer;
@@ -35,6 +37,7 @@ lazy_static::lazy_static! {
     pub static ref gRelaySettings: Arc<Mutex<RelaySettings>> = Arc::new(Mutex::new(RelaySettings::new()));
     pub static ref gRelayGrpcServer: Arc<Mutex<RelayGrpcServer>> = Arc::new(Mutex::new(RelayGrpcServer::new()));
     pub static ref gRelaySpvrClient: Arc<Mutex<RelaySpvrClient>> = Arc::new(Mutex::new(RelaySpvrClient::new()));
+    pub static ref gRelayDeployClient: Arc<Mutex<RelayDeployClient>> = Arc::new(Mutex::new(RelayDeployClient::new()));
     pub static ref gRelayConnMgr: Arc<Mutex<RelayConnManager>> = Arc::new(Mutex::new(RelayConnManager::new()));
     pub static ref gRedisConn: Arc<Mutex<Option<MultiplexedConnection>>> = Arc::new(Mutex::new(None));
     pub static ref gRoomMgr: Arc<Mutex<Option<RelayRoomManager>>> = Arc::new(Mutex::new(None));
@@ -85,9 +88,13 @@ async fn main() {
     let spvr_srv_port = gRelaySettings.lock().await.spvr_server_port;
     let srv_id = gRelaySettings.lock().await.server_id.clone();
     let address = format!("ws://{}:{}/inner?server_id={}&server_type=0", spvr_srv_ip, spvr_srv_port, srv_id);
-    tracing::info!("connecting to: {}", address);
+    tracing::info!("spvr, connecting to: {}", address);
     gRelaySpvrClient.lock().await.connect(address).await;
 
+    let address = format!("ws://{}:{}/inner?server_id={}&server_type=0", spvr_srv_ip, spvr_srv_port, srv_id);
+    tracing::info!("deploy, connecting to: {}", address);
+    gRelayDeployClient.lock().await.connect(address).await;
+    
     let server = RelayServer::new("0.0.0.0".to_string(),
                                   gRelaySettings.lock().await.server_working_port,
                                   context.clone());

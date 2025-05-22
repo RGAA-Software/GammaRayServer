@@ -13,8 +13,7 @@ mod spvr_defs;
 mod spvr_relay_handler;
 mod spvr_event_mgr;
 mod spvr_errors;
-mod spvr_profile_handler;
-mod svpr_ui;
+mod spvr_profile_handler; 
 
 use crate::spvr_conn_mgr::SpvrConnManager;
 use crate::spvr_grpc_profile_client_mgr::SpvrGrpcProfileClientMgr;
@@ -57,32 +56,5 @@ async fn main() {
                                      context);
         server.start().await;
     };
-    
-    if gSpvrSettings.lock().await.show_ui {
-        tokio::spawn(async move {
-            srv_task.await;
-        });
-
-        let options = eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default().with_inner_size([960.0, 540.0]),
-            ..Default::default()
-        };
-        let r = eframe::run_native(
-            "GammaRay Server",
-            options,
-            Box::new(|cc| {
-                cc.egui_ctx.set_visuals(egui::Visuals::dark());
-                // This gives us image support:
-                egui_extras::install_image_loaders(&cc.egui_ctx);
-        
-                Ok(Box::<svpr_ui::SpvrUI>::default())
-            }),
-        );
-        if let Err(e) = r {
-            log::error!("{}", e);
-        }
-    }
-    else {
-        srv_task.await;
-    }
+    srv_task.await;
 }

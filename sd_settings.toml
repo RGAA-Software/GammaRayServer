@@ -1,0 +1,46 @@
+####################WARNING#######################
+## ONLY used in NO-UI Mode
+## If you want to use UI to config, ignore this,
+## just adjusting the config on UI, they'll save
+## to a leveldb database.
+##
+## 只在 *非* UI模式下读取
+## 如果你想使用界面来配置，直接在解码调整即可，配置会
+## 存入一个leveldb中
+####################WARNING#######################
+
+###############################
+### Deploy Server Begin ###
+deploy_server_port = 30400
+### Deploy Server End ###
+
+###############################
+### Supervisor Server Begin ###
+
+# spvr server port
+spvr_server_port = 30500
+
+### Supervisor Server End ###
+
+###############################
+### Relay Server Begin ###
+
+# relay server port
+relay_server_port = 30600
+
+# relay grpc port
+relay_grpc_port = 40600
+
+### Relay Server End ###
+
+###############################
+### Profile Server Begin ###
+
+# profile server port
+profile_server_port = 30700
+
+# profile grpc port
+profile_grpc_port = 40700
+
+### Profile Server End ###
+

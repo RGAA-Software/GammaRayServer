@@ -16,6 +16,7 @@ pub struct RelaySettings {
     pub spvr_server_ip: String,
     pub spvr_server_port: u16,
     pub redis_url: String,
+    pub single_deploy_port: u16,
 }
 
 impl RelaySettings {
@@ -60,6 +61,7 @@ impl Default for RelaySettings {
             spvr_server_ip: "".to_string(),
             spvr_server_port: 0,
             redis_url: "".to_string(),
+            single_deploy_port: 30400,
         }
     }
 }

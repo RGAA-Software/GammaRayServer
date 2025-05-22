@@ -12,6 +12,7 @@ fn main() {
         .out_dir("src/")
         .compile_protos(&["tc_protocol/relay_message.proto",
             "tc_protocol/spvr_inner.proto",
+            "tc_protocol/sd_inner.proto",
         ], &["tc_protocol"])
         .unwrap();
 }

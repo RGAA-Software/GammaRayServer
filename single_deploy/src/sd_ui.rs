@@ -91,17 +91,43 @@ impl eframe::App for SpvrUI {
         egui::CentralPanel::default().show(ctx, |ui| {
             if self.main_page == MainPageType::PageServerSettings {
                 egui::ScrollArea::vertical().show(ui, |ui| {
+                    let lbl_size = [200.0, 20.0];
+
+                    ui.add_space(15.0);
+                    ui.heading("Basic Information");
+                    ui.add_space(15.0);
+
+                    egui::Grid::new("basic_info")
+                        .num_columns(3)
+                        .spacing([40.0, 14.0])
+                        .striped(true)
+                        .show(ui, |ui| {
+                            ui.label("Source Repository");
+                            use egui::special_emojis::GITHUB;
+                            ui.hyperlink_to(
+                                format!("{GITHUB} GitHub"),
+                                "https://github.com/RGAA-Software/GammaRay",
+                            );
+                            ui.end_row();
+
+                            ui.label("Steam");
+                            ui.hyperlink_to(
+                                "Steam",
+                                "https://github.com/RGAA-Software/GammaRay",
+                            );
+                            ui.end_row();
+                        });
+
                     ui.add_space(15.0);
                     ui.heading("Supervisor Server Settings");
                     ui.add_space(15.0);
-
-                    let lbl_size = [200.0, 20.0];
 
                     egui::Grid::new("grid_spvr")
                         .num_columns(3)
                         .spacing([40.0, 14.0])
                         .striped(true)
                         .show(ui, |ui| {
+
                             ui.label("Server Name:");
                             ui.label(self.spvr_server_name.clone());
                             ui.end_row();
@@ -110,7 +136,7 @@ impl eframe::App for SpvrUI {
                             use egui::special_emojis::GITHUB;
                             ui.hyperlink_to(
                                 format!("{GITHUB} Document on GitHub"),
-                                "https://github.com/rgaa-software/gammaray",
+                                "https://github.com/RGAA-Software/GammaRay/wiki/How-to-deploy-a-single-instance-server",
                             );
                             ui.end_row();
 
