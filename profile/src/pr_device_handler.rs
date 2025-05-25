@@ -147,7 +147,7 @@ impl PrDeviceHandler {
         let mut ok = device.device_id == device_id;
 
         let ok_random_pwd = if random_pwd_md5 == device.random_pwd {true} else {false};
-        let ok_safety_pwd = if safety_pwd_md5 == device.safety_pwd {true} else {false};
+        let ok_safety_pwd = if !safety_pwd_md5.is_empty() && safety_pwd_md5 == device.safety_pwd {true} else {false};
 
         if !ok_random_pwd && !ok_safety_pwd {
             return Json(resp_empty_str_map(get_err_pair(ERR_PASSWORD_FAILED)));
@@ -159,5 +159,35 @@ impl PrDeviceHandler {
         hm.insert(KEY_DEVICE_ID.to_string(), device_id);
         hm.insert(KEY_PWD_TYPE.to_string(), pwd_type.to_string());
         Json(ok_resp_str_map(hm))
+    }
+
+    pub async fn update_random_pwd(State(context): State<Arc<Mutex<PrContext>>>,
+                                   query: Query<HashMap<String, String>>)
+                                   -> Json<RespMessage<PrDevice>> {
+        let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
+        let new_random_pwd = query.get("new_random_pwd").unwrap_or(&"".to_string()).clone();
+
+        let db = gDatabase.clone();
+        let device = db.lock().await.find_device_by_id(device_id.clone()).await;
+        if let None = device {
+            return Json(RespMessage::<PrDevice>::new(ERR_DEVICE_NOT_FOUND));
+        }
+        let mut device = device.unwrap();
+
+        // generate new random password
+        let id_generator = context.lock().await.id_generator.clone();
+        let new_random_pwd = id_generator.lock().await.generate_random_pwd();
+
+        // update to database
+        let update_info = HashMap::<String, String>::from([
+            (String::from("random_pwd"), base::md5_hex(&new_random_pwd.clone()))
+        ]);
+        let r = db.lock().await.update_device(device_id.clone(), update_info).await;
+        if !r {
+            return Json(RespMessage::<PrDevice>::new(ERR_DEVICE_NOT_FOUND));
+        }
+
+        device.random_pwd = new_random_pwd;
+        Json(ok_resp(device))
     }
 }

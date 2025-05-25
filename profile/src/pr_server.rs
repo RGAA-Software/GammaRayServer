@@ -34,6 +34,7 @@ impl PrServer {
             .route("/verify/device/info", get(PrDeviceHandler::verify_device_info))
             .route("/query/devices", get(PrDeviceHandler::query_devices))
             .route("/append/used/time", post(PrDeviceHandler::append_used_time))
+            .route("/update/random/pwd", post(PrDeviceHandler::update_random_pwd))
             .with_state(self.context.clone());
         
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap();
