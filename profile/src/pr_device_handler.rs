@@ -165,7 +165,7 @@ impl PrDeviceHandler {
                                    query: Query<HashMap<String, String>>)
                                    -> Json<RespMessage<PrDevice>> {
         let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
-        let new_random_pwd = query.get("new_random_pwd").unwrap_or(&"".to_string()).clone();
+        //let new_random_pwd = query.get("new_random_pwd").unwrap_or(&"".to_string()).clone();
 
         let db = gDatabase.clone();
         let device = db.lock().await.find_device_by_id(device_id.clone()).await;
@@ -188,6 +188,35 @@ impl PrDeviceHandler {
         }
 
         device.random_pwd = new_random_pwd;
+        Json(ok_resp(device))
+    }
+
+    pub async fn update_safety_pwd(State(context): State<Arc<Mutex<PrContext>>>,
+                                   query: Query<HashMap<String, String>>)
+                                   -> Json<RespMessage<PrDevice>> {
+        let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
+        let new_safety_pwd = query.get("new_safety_pwd").unwrap_or(&"".to_string()).clone();
+        if device_id.is_empty() || new_safety_pwd.is_empty() {
+            return return Json(RespMessage::<PrDevice>::new(ERR_PARAM_INVALID));
+        }
+
+        let db = gDatabase.clone();
+        let device = db.lock().await.find_device_by_id(device_id.clone()).await;
+        if let None = device {
+            return Json(RespMessage::<PrDevice>::new(ERR_DEVICE_NOT_FOUND));
+        }
+        let mut device = device.unwrap();
+
+        // update to database
+        let update_info = HashMap::<String, String>::from([
+            (String::from("safety_pwd"), base::md5_hex(&new_safety_pwd.clone()))
+        ]);
+        let r = db.lock().await.update_device(device_id.clone(), update_info).await;
+        if !r {
+            return Json(RespMessage::<PrDevice>::new(ERR_DEVICE_NOT_FOUND));
+        }
+
+        device.safety_pwd = new_safety_pwd;
         Json(ok_resp(device))
     }
 }
