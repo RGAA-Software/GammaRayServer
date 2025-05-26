@@ -16,6 +16,8 @@ pub struct RelaySettings {
     pub spvr_server_ip: String,
     pub spvr_server_port: u16,
     pub redis_url: String,
+
+    #[serde(skip_deserializing, skip_serializing)]
     pub single_deploy_port: u16,
 }
 
