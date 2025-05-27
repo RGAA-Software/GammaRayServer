@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use axum::body::Bytes;
 use axum::extract::ws::{Message, WebSocket};
@@ -13,6 +14,7 @@ use protocol::relay::RelayMessage;
 use crate::{gRedisConn, gRelayConnMgr, gRoomMgr};
 use crate::relay_conn_mgr::RelayConnManager;
 use crate::relay_context::RelayContext;
+use crate::relay_message::{KEY_CLIENT_W3C_HOST, KEY_CREATE_TIMESTAMP, KEY_DEVICE_ID, KEY_LAST_UPDATE_TIMESTAMP, KEY_REMOTE_DEVICE_ID, KEY_ROOM_ID};
 use crate::relay_proto_maker::make_error_message;
 use crate::relay_room_mgr::RelayRoomManager;
 
@@ -131,5 +133,13 @@ impl RelayConn {
 
     pub fn is_alive(&self) -> bool {
         base::get_current_timestamp() - self.last_update_timestamp < 60*1000
+    }
+
+    pub fn as_str_map(&self) -> HashMap<String, String> {
+        let mut hm = HashMap::new();
+        hm.insert(KEY_DEVICE_ID.to_string(), self.device_id.clone());
+        hm.insert(KEY_LAST_UPDATE_TIMESTAMP.to_string(), self.last_update_timestamp.to_string());
+        hm.insert(KEY_CLIENT_W3C_HOST.to_string(), self.client_w3c_host.clone());
+        hm
     }
 }

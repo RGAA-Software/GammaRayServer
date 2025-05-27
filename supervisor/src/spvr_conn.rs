@@ -74,7 +74,7 @@ impl SpvrConn {
         else if msg_type == SpvrInnerMessageType::KSpvrInnerHeartBeat {
             let m_heartbeat = m.heartbeat.unwrap();
             self.server_hb_index = m_heartbeat.hb_index;
-            tracing::info!("heartbeat from: {}, index: {}", server_id, self.server_hb_index);
+            //tracing::info!("heartbeat from: {}, index: {}", server_id, self.server_hb_index);
             if server_type == SpvrServerType::KSpvrRelayServer {
                 gSpvrGrpcRelayClientMgr.lock().await.on_heartbeat(server_id.clone(), m_heartbeat).await;
             }

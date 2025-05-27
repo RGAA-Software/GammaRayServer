@@ -31,4 +31,8 @@ impl RelayConnManager {
     pub async fn get_connection(&self, device_id: String) -> Option<Arc<Mutex<RelayConn>>> {
         self.relay_conns.lock().await.get(&device_id).cloned()
     }
+    
+    pub async fn get_connections(&self) -> Vec<Arc<Mutex<RelayConn>>> {
+        self.relay_conns.lock().await.values().cloned().collect()
+    }
 }

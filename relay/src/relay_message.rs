@@ -12,3 +12,4 @@ pub const KEY_CREATE_TIMESTAMP: &str = "create_timestamp";
 pub const KEY_LAST_UPDATE_TIMESTAMP: &str = "last_update_timestamp";
 pub const KEY_PAGE: &str = "page";
 pub const KEY_PAGE_SIZE: &str = "page_size";
+pub const KEY_CLIENT_W3C_HOST: &str = "client_w3c_host";

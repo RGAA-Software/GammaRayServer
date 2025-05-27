@@ -22,7 +22,7 @@ use base::{json_util, RespMessage};
 use protocol::relay::{RelayMessage, RelayMessageType};
 use crate::relay_conn::RelayConn;
 use crate::relay_conn_mgr::RelayConnManager;
-use crate::{gRelayConnMgr, gRoomMgr, relay_message, relay_room_handler};
+use crate::{gRelayConnMgr, gRoomMgr, relay_device_handler, relay_message, relay_room_handler};
 
 pub struct RelayServer {
     pub host: String,
@@ -48,6 +48,7 @@ impl RelayServer {
             .route("/relay", any(RelayServer::ws_handler))
             .route("/query/room", get(relay_room_handler::hr_query_room))
             .route("/query/rooms", get(relay_room_handler::hr_query_rooms))
+            .route("/query/devices", get(relay_device_handler::hd_query_devices))
             .with_state(self.context.clone());
             // .layer(
             //     TraceLayer::new_for_http()
