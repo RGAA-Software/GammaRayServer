@@ -1,7 +1,5 @@
+use crate::gRelaySettings;
 use serde::Deserialize;
-use sysinfo::{
-    Components, Disks, Networks, System,
-};
 use base::system_info;
 
 #[derive(Debug, Deserialize)]
@@ -26,28 +24,16 @@ impl RelaySettings {
         RelaySettings::default()
     }
 
-    pub async fn load(&mut self) {
+    pub async fn load_settings() {
         let toml_content = std::fs::read_to_string("relay_settings.toml")
             .expect("can't read relay_settings.toml");
-        let settings: RelaySettings = toml::from_str(&toml_content).expect("parse toml failed");
-        self.copy_from(&settings);
-
+        let mut ns: RelaySettings = toml::from_str(&toml_content).expect("parse toml failed");
         let system_info = system_info::SystemInfo::new();
-        self.server_id = format!("{}-{}", settings.server_name, system_info.server_id);
+        ns.server_id = format!("{}-{}", ns.server_name, system_info.server_id);
+        tracing::info!("{:#?}", ns);
         
-        println!("{:#?}", self);
-    }
-
-    fn copy_from(&mut self, source: &RelaySettings) {
-        self.server_id = source.server_id.clone();
-        self.server_name = source.server_name.clone();
-        self.server_w3c_ip = source.server_w3c_ip.clone();
-        self.server_local_ip = source.server_local_ip.clone();
-        self.server_grpc_port = source.server_grpc_port;
-        self.server_working_port = source.server_working_port;
-        self.spvr_server_ip = source.spvr_server_ip.clone();
-        self.spvr_server_port = source.spvr_server_port;
-        self.redis_url = source.redis_url.clone();
+        let mut settings = gRelaySettings.lock().await;
+        *settings = ns;
     }
 }
 

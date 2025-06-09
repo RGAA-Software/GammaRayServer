@@ -49,7 +49,7 @@ async fn main() {
     let _guard = log_util::init_log("logs/relay/".to_string(), "log_relay".to_string());
 
     // settings
-    gRelaySettings.lock().await.load().await;
+    RelaySettings::load_settings().await;
 
     // redis
     {

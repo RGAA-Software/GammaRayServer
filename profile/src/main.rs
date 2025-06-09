@@ -39,7 +39,7 @@ async fn main() {
     let _guard = log_util::init_log("logs/profile/".to_string(), "log_profile".to_string());
     
     // settings
-    gPrSettings.lock().await.load().await;
+    PrSettings::load_settings().await;
 
     // database
     if !gDatabase.lock().await.init().await {

@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use base::system_info;
 use crate::gSpvrSettings;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -19,10 +20,12 @@ impl SpvrSettings {
     pub async fn load_settings() {
         let toml_content = std::fs::read_to_string("spvr_settings.toml")
             .expect("can't read spvr_settings.toml");
-        let ns: SpvrSettings = toml::from_str(&toml_content).expect("parse toml failed");
-        println!("{:#?}", ns);
+        let mut ns: SpvrSettings = toml::from_str(&toml_content).expect("parse toml failed");
+        let system_info = system_info::SystemInfo::new();
+        ns.server_id = format!("{}-{}", ns.server_name, system_info.server_id);
         let mut settings = gSpvrSettings.lock().await; // 获取异步锁
-        *settings = ns; // 修改内部数据
+        tracing::info!("Settings:\n{:#?}", ns);
+        *settings = ns;
     }
 }
 

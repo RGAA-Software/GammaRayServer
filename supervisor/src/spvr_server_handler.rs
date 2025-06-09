@@ -10,11 +10,11 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 // handler server
-pub async fn hs_get_online_servers(
-    State(context): State<Arc<Mutex<SpvrContext>>>,
-    query: Query<HashMap<String, String>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> Json<RespMessage<Vec<StrMap>>>  {
+pub async fn hs_get_online_servers(State(_context): State<Arc<Mutex<SpvrContext>>>,
+                                   _query: Query<HashMap<String, String>>,
+                                   ConnectInfo(_addr): ConnectInfo<SocketAddr>)
+   -> Json<RespMessage<Vec<StrMap>>>  {
+    
     let mut result: Vec<StrMap> = Default::default();
     
     // 1. profile server
@@ -32,11 +32,10 @@ pub async fn hs_get_online_servers(
     Json(base::ok_resp(result))
 }
 
-pub async fn hs_get_online_profile_servers(
-    State(context): State<Arc<Mutex<SpvrContext>>>,
-    query: Query<HashMap<String, String>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> Json<RespMessage<Vec<StrMap>>> {
+pub async fn hs_get_online_profile_servers(State(_context): State<Arc<Mutex<SpvrContext>>>, 
+                                           _query: Query<HashMap<String, String>>, 
+                                           ConnectInfo(_addr): ConnectInfo<SocketAddr>
+    ) -> Json<RespMessage<Vec<StrMap>>> {
 
     let mut result: Vec<StrMap> = Default::default();
     let profile_conns = gSpvrConnMgr.lock().await.get_profile_conns().await;
@@ -46,11 +45,10 @@ pub async fn hs_get_online_profile_servers(
     Json(base::ok_resp(result))
 }
 
-pub async fn hs_get_online_relay_servers(
-    State(context): State<Arc<Mutex<SpvrContext>>>,
-    query: Query<HashMap<String, String>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> Json<RespMessage<Vec<StrMap>>> {
+pub async fn hs_get_online_relay_servers(State(context): State<Arc<Mutex<SpvrContext>>>, 
+                                         query: Query<HashMap<String, String>>, 
+                                         ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ) -> Json<RespMessage<Vec<StrMap>>> {
     
     let mut result: Vec<StrMap> = Default::default();
     let relay_conns = gSpvrConnMgr.lock().await.get_relay_conns().await;

@@ -3,6 +3,7 @@ use sysinfo::{
     Components, Disks, Networks, System,
 };
 use base::system_info;
+use crate::gPrSettings;
 
 #[derive(Debug, Deserialize)]
 pub struct PrSettings {
@@ -23,28 +24,16 @@ impl PrSettings {
         PrSettings::default()
     }
 
-    pub async fn load(&mut self) {
+    pub async fn load_settings() {
         let toml_content = std::fs::read_to_string("pr_settings.toml")
             .expect("can't read pr_settings.toml");
-        let settings: PrSettings = toml::from_str(&toml_content).expect("parse toml failed");
-        self.copy_from(&settings);
-
+        let mut ns: PrSettings = toml::from_str(&toml_content).expect("parse toml failed");
         let system_info = system_info::SystemInfo::new();
-        self.server_id = format!("{}-{}", settings.server_name, system_info.server_id);
-
-        tracing::info!("Settings:\n{:#?}", self);
-    }
-
-    fn copy_from(&mut self, source: &PrSettings) {
-        self.server_id = source.server_id.clone();
-        self.server_name = source.server_name.clone();
-        self.server_w3c_ip = source.server_w3c_ip.clone();
-        self.server_local_ip = source.server_local_ip.clone();
-        self.server_grpc_port = source.server_grpc_port;
-        self.server_working_port = source.server_working_port;
-        self.spvr_server_ip = source.spvr_server_ip.clone();
-        self.spvr_server_port = source.spvr_server_port;
-        self.mongodb_url = source.mongodb_url.clone();
+        ns.server_id = format!("{}-{}", ns.server_name, system_info.server_id);
+        
+        let mut settings = gPrSettings.lock().await;
+        tracing::info!("Settings:\n{:#?}", ns);
+        *settings = ns;
     }
 }
 
