@@ -13,3 +13,8 @@ pub const KEY_LAST_UPDATE_TIMESTAMP: &str = "last_update_timestamp";
 pub const KEY_PAGE: &str = "page";
 pub const KEY_PAGE_SIZE: &str = "page_size";
 pub const KEY_CLIENT_W3C_HOST: &str = "client_w3c_host";
+
+pub const KEY_DEVICE_W3C_IP: &'static str = "device_w3c_ip";
+pub const KEY_DEVICE_LOCAL_IPS: &'static str = "device_local_ips";
+pub const KEY_RELAY_SERVER_IP: &'static str = "relay_server_ip";
+pub const KEY_RELAY_SERVER_PORT: &'static str = "relay_server_port";

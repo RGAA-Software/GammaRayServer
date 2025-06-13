@@ -33,6 +33,7 @@ impl PrServer {
             .route("/create/new/device", post(PrDeviceHandler::create_new_device))
             .route("/verify/device/info", get(PrDeviceHandler::verify_device_info))
             .route("/query/devices", get(PrDeviceHandler::query_devices))
+            .route("/query/device/by/id", get(PrDeviceHandler::query_device_by_id))
             .route("/append/used/time", post(PrDeviceHandler::append_used_time))
             .route("/update/random/pwd", post(PrDeviceHandler::update_random_pwd))
             .route("/update/safety/pwd", post(PrDeviceHandler::update_safety_pwd))

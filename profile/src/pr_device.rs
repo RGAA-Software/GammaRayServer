@@ -14,13 +14,15 @@ pub struct PrDevice {
     //
     pub last_update_timestamp: i64,
     //
-    pub random_pwd: String,
+    pub random_pwd_md5: String,
     //
-    pub safety_pwd: String,
+    pub safety_pwd_md5: String,
     //
     // reset per month
     #[serde(default)]
     pub used_time: i64,
+    
+    pub gen_random_pwd: String,
 }
 
 impl Default for PrDevice {
@@ -31,9 +33,10 @@ impl Default for PrDevice {
             seed: "".to_string(),
             created_timestamp: 0,
             last_update_timestamp: 0,
-            random_pwd: "".to_string(),
-            safety_pwd: "".to_string(),
+            random_pwd_md5: "".to_string(),
+            safety_pwd_md5: "".to_string(),
             used_time: 0,
+            gen_random_pwd: "".to_string(),
         }
     }
 }

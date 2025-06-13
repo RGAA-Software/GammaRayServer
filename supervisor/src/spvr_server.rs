@@ -18,7 +18,6 @@ use crate::{gSpvrConnMgr, gSpvrGrpcProfileClientMgr, gSpvrGrpcRelayClientMgr};
 use crate::spvr_conn::SpvrConn;
 use crate::spvr_context::SpvrContext;
 use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;
-use crate::spvr_profile_handler::hd_verify_device_info_in_profile_server;
 use crate::spvr_relay_handler::{hd_get_device_info_from_relay_server};
 use crate::spvr_server_handler::{hs_get_online_profile_servers, hs_get_online_relay_servers, hs_get_online_servers};
 
@@ -49,10 +48,8 @@ impl SpvrServer {
             .route("/get/online/profile/servers", get(hs_get_online_profile_servers))
             .route("/get/online/relay/servers", get(hs_get_online_relay_servers))
             // relay server
-            .route("/get/device/info", get(hd_get_device_info_from_relay_server))
+            //.route("/get/device/info", get(hd_get_device_info_from_relay_server))
 
-            // profile server
-            .route("/verify/device/info", post(hd_verify_device_info_in_profile_server))
             .with_state(self.context.clone());
         
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await.unwrap();

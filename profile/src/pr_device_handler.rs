@@ -25,6 +25,9 @@ impl PrDeviceHandler {
             let id_generator = context.lock().await.id_generator.clone();
             let new_device_info = id_generator.lock().await.generate_new_id(&hw_info, &platform);
 
+            // new random pwd md5
+            let new_random_pwd_md5 = base::md5_hex(&new_device_info.random_pwd);
+
             tracing::info!("will find in database: {}", new_device_info.device_id.clone());
             let match_device = gDatabase.lock().await
                 .find_device_by_id_and_seed(new_device_info.device_id.clone(), new_device_info.seed.clone()).await;
@@ -36,11 +39,13 @@ impl PrDeviceHandler {
 
                 let new_random_pwd = id_generator.lock().await.generate_random_pwd();
                 let update_info = HashMap::<String, String>::from([
-                    (String::from("random_pwd"), base::md5_hex(&new_random_pwd.clone()))
+                    (String::from("random_pwd_md5"), base::md5_hex(&new_random_pwd)),
+                    (String::from("gen_random_pwd"), new_random_pwd.clone()),
                 ]);
                 let update_result = gDatabase.lock().await.update_device(match_device.device_id.clone(), update_info).await;
                 if update_result {
-                    match_device.random_pwd = new_random_pwd;
+                    match_device.gen_random_pwd = new_random_pwd.clone();
+                    match_device.random_pwd_md5 = base::md5_hex(&new_random_pwd);
                     break Some(match_device);
                 }
                 else {
@@ -64,14 +69,13 @@ impl PrDeviceHandler {
                         seed: new_device_info.seed,
                         created_timestamp: base::get_current_timestamp(),
                         last_update_timestamp: base::get_current_timestamp(),
-                        random_pwd: new_device_info.random_pwd,
-                        safety_pwd: "".to_string(),
+                        random_pwd_md5: new_random_pwd_md5,
+                        safety_pwd_md5: "".to_string(),
                         used_time: 0,
+                        gen_random_pwd: new_device_info.random_pwd,
                     };
 
                     let resp_device = device.clone();
-
-                    device.random_pwd = base::md5_hex(&device.random_pwd);
                     let ok = gDatabase.lock().await.insert_device(device.clone()).await;
                     if ok {
                         break Some(resp_device);
@@ -99,6 +103,23 @@ impl PrDeviceHandler {
         let db = gDatabase.clone();
         let devices = db.lock().await.query_devices(1, 10).await;
         Json(ok_resp(devices))
+    }
+
+    pub async fn query_device_by_id(State(context): State<Arc<Mutex<PrContext>>>,
+                               query: Query<HashMap<String, String>>)
+                               -> Json<RespMessage<PrDevice>> {
+        let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
+        if device_id.is_empty(){
+            return Json(RespMessage::<PrDevice>::new(ERR_PARAM_INVALID));
+        }
+        let db = gDatabase.clone();
+        let device = db.lock().await.find_device_by_id(device_id).await;
+        if let Some(device) = device {
+            Json(ok_resp(device))
+        }
+        else {
+            Json(RespMessage::<PrDevice>::new(ERR_DEVICE_NOT_FOUND))
+        }
     }
 
     pub async fn append_used_time(State(context): State<Arc<Mutex<PrContext>>>,
@@ -135,7 +156,7 @@ impl PrDeviceHandler {
         let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
         let random_pwd_md5 = query.get("random_pwd_md5").unwrap_or(&"".to_string()).clone();
         let safety_pwd_md5 = query.get("safety_pwd_md5").unwrap_or(&"".to_string()).clone();
-        if device_id.is_empty() || random_pwd_md5.is_empty() {
+        if device_id.is_empty() {
             return Json(resp_empty_str_map(get_err_pair(ERR_PARAM_INVALID)));
         }
 
@@ -146,14 +167,23 @@ impl PrDeviceHandler {
         let device = device.unwrap();
         let mut ok = device.device_id == device_id;
 
-        let ok_random_pwd = if random_pwd_md5 == device.random_pwd {true} else {false};
-        let ok_safety_pwd = if !safety_pwd_md5.is_empty() && safety_pwd_md5 == device.safety_pwd {true} else {false};
+        let ok_random_pwd = if !random_pwd_md5.is_empty() && random_pwd_md5 == device.random_pwd_md5 {true} else {false};
+        let ok_safety_pwd = if !safety_pwd_md5.is_empty() && safety_pwd_md5 == device.safety_pwd_md5 {true} else {false};
 
         if !ok_random_pwd && !ok_safety_pwd {
             return Json(resp_empty_str_map(get_err_pair(ERR_PASSWORD_FAILED)));
         }
-
-        let pwd_type = if ok_random_pwd {"random"} else if ok_safety_pwd {"safety"} else {"unknown"};
+        
+        let mut pwd_type = "unknown";
+        if ok_random_pwd && ok_safety_pwd {
+            pwd_type = "all";
+        }
+        else if ok_random_pwd {
+            pwd_type = "random"
+        }
+        else if ok_safety_pwd {
+            pwd_type = "safety"
+        }
 
         let mut hm = HashMap::new();
         hm.insert(KEY_DEVICE_ID.to_string(), device_id);
@@ -165,8 +195,7 @@ impl PrDeviceHandler {
                                    query: Query<HashMap<String, String>>)
                                    -> Json<RespMessage<PrDevice>> {
         let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
-        //let new_random_pwd = query.get("new_random_pwd").unwrap_or(&"".to_string()).clone();
-
+        tracing::info!("will query device: {}", device_id);
         let db = gDatabase.clone();
         let device = db.lock().await.find_device_by_id(device_id.clone()).await;
         if let None = device {
@@ -179,15 +208,18 @@ impl PrDeviceHandler {
         let new_random_pwd = id_generator.lock().await.generate_random_pwd();
 
         // update to database
+        let random_pwd_md5 = base::md5_hex(&new_random_pwd.clone());
         let update_info = HashMap::<String, String>::from([
-            (String::from("random_pwd"), base::md5_hex(&new_random_pwd.clone()))
+            (String::from("random_pwd_md5"), random_pwd_md5.clone()),
+            (String::from("gen_random_pwd"), new_random_pwd.clone()),
         ]);
         let r = db.lock().await.update_device(device_id.clone(), update_info).await;
         if !r {
             return Json(RespMessage::<PrDevice>::new(ERR_DEVICE_NOT_FOUND));
         }
 
-        device.random_pwd = new_random_pwd;
+        device.random_pwd_md5 = random_pwd_md5;
+        device.gen_random_pwd = new_random_pwd;
         Json(ok_resp(device))
     }
 
@@ -195,8 +227,8 @@ impl PrDeviceHandler {
                                    query: Query<HashMap<String, String>>)
                                    -> Json<RespMessage<PrDevice>> {
         let device_id = query.get("device_id").unwrap_or(&"".to_string()).clone();
-        let new_safety_pwd = query.get("new_safety_pwd").unwrap_or(&"".to_string()).clone();
-        if device_id.is_empty() || new_safety_pwd.is_empty() {
+        let safety_pwd_md5 = query.get("safety_pwd_md5").unwrap_or(&"".to_string()).clone();
+        if device_id.is_empty() || safety_pwd_md5.is_empty() {
             return return Json(RespMessage::<PrDevice>::new(ERR_PARAM_INVALID));
         }
 
@@ -209,14 +241,14 @@ impl PrDeviceHandler {
 
         // update to database
         let update_info = HashMap::<String, String>::from([
-            (String::from("safety_pwd"), base::md5_hex(&new_safety_pwd.clone()))
+            (String::from("safety_pwd_md5"), safety_pwd_md5.clone())
         ]);
         let r = db.lock().await.update_device(device_id.clone(), update_info).await;
         if !r {
             return Json(RespMessage::<PrDevice>::new(ERR_DEVICE_NOT_FOUND));
         }
 
-        device.safety_pwd = new_safety_pwd;
+        device.safety_pwd_md5 = safety_pwd_md5;
         Json(ok_resp(device))
     }
 }

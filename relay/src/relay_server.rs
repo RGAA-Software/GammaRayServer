@@ -49,6 +49,7 @@ impl RelayServer {
             .route("/query/room", get(relay_room_handler::hr_query_room))
             .route("/query/rooms", get(relay_room_handler::hr_query_rooms))
             .route("/query/devices", get(relay_device_handler::hd_query_devices))
+            .route("/query/device", get(relay_device_handler::hd_query_device))
             .with_state(self.context.clone());
             // .layer(
             //     TraceLayer::new_for_http()
