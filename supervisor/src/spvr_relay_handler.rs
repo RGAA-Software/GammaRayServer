@@ -12,6 +12,7 @@ use crate::spvr_context::SpvrContext;
 use crate::spvr_defs::{SpvrGrpcDeviceInfo, KEY_DEVICE_ID, KEY_DEVICE_LOCAL_IPS, KEY_DEVICE_W3C_IP, KEY_RELAY_SERVER_IP, KEY_RELAY_SERVER_PORT, KEY_W3C_IP};
 use crate::spvr_errors::{get_err_pair, ERR_DEVICE_NOT_FOUND, ERR_PARAM_INVALID};
 
+// !!! deprecated !!!
 // handler device
 // get device info from RelayServer
 pub async fn hd_get_device_info_from_relay_server(State(_context): State<Arc<Mutex<SpvrContext>>>, 

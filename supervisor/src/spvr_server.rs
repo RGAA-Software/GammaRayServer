@@ -18,7 +18,6 @@ use crate::{gSpvrConnMgr, gSpvrGrpcProfileClientMgr, gSpvrGrpcRelayClientMgr};
 use crate::spvr_conn::SpvrConn;
 use crate::spvr_context::SpvrContext;
 use crate::spvr_grpc_client_mgr_trait::SpvrGrpcClientManager;
-use crate::spvr_relay_handler::{hd_get_device_info_from_relay_server};
 use crate::spvr_server_handler::{hs_get_online_profile_servers, hs_get_online_relay_servers, hs_get_online_servers};
 
 pub struct SpvrServer {

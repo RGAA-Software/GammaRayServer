@@ -11,6 +11,7 @@ pub const KEY_DEVICE_LOCAL_IPS: &'static str = "device_local_ips";
 pub const KEY_RELAY_SERVER_IP: &'static str = "relay_server_ip";
 pub const KEY_RELAY_SERVER_PORT: &'static str = "relay_server_port";
 
+// !!! deprecated !!!
 // reps a device
 pub struct SpvrGrpcDeviceInfo {
     pub device_id: String,
